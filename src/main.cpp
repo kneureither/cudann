@@ -25,13 +25,14 @@ int main()
     Dataset dataset = Dataset();
     std::cout << "Dataset test size: " << dataset.get_test_size() << " Dataset train size: " << dataset.get_train_size() << std::endl;
 
-    mnist_image_t *sample = dataset.get_train_sample(0);
+    int index = 1;
+    mnist_image_t *sample = dataset.get_train_sample(index);
     for (int i = 0; i < MNIST_IMAGE_SIZE; i++)
     {
-        std::cout << (int)sample->pixels[i] << " ";
+        std::cout << (int)(sample->pixels[i] > 0) << " ";
     }
     std::cout << std::endl;
-    std::cout << "Sample label: " << (int)dataset.get_train_label(0) << std::endl;
+    std::cout << "Sample label: " << (int)dataset.get_train_label(index) << std::endl;
 
     return 0;
 }

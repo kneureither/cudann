@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <bit>
+#include <fstream>
 
 Dataset::Dataset()
 {
@@ -71,22 +72,19 @@ uint8_t Dataset::get_test_label(int index)
  */
 void Dataset::_get_labels_from_file(const char *path, mnist_dataset_t *dataset)
 {
-    FILE *stream;
-    mnist_label_file_header_t header;
-    dataset->labels = NULL;
+    dataset->labels = nullptr;
 
-    stream = fopen(path, "rb");
-
-    if (NULL == stream)
+    std::basic_ifstream<char> file(path, std::ios::binary);
+    if (!file.is_open())
     {
-        fprintf(stderr, "Could not open file: %s\n", path);
+        std::cerr << "Could not open file: " << path << '\n';
         return;
     }
 
-    if (1 != fread(&header, sizeof(mnist_label_file_header_t), 1, stream))
+    mnist_label_file_header_t header;
+    if (!file.read(reinterpret_cast<char *>(&header), sizeof(header)))
     {
-        fprintf(stderr, "Could not read label file header from: %s\n", path);
-        fclose(stream);
+        std::cerr << "Could not read label file header from: " << path << '\n';
         return;
     }
 
@@ -99,87 +97,77 @@ void Dataset::_get_labels_from_file(const char *path, mnist_dataset_t *dataset)
 
     if (MNIST_LABEL_MAGIC != header.magic_number)
     {
-        std::cout << "Invalid header read from label file: " << path << " (" << header.magic_number << " not " << MNIST_LABEL_MAGIC << ")" << std::endl;
-        fclose(stream);
+        std::cout << "Invalid header read from label file: " << path
+                  << " (" << header.magic_number << " not " << MNIST_LABEL_MAGIC << ")\n";
         return;
     }
 
     dataset->size = header.number_of_labels;
     dataset->labels = new uint8_t[dataset->size];
 
-    if (dataset->size != fread(dataset->labels, 1, dataset->size, stream))
+    if (!file.read(reinterpret_cast<char *>(dataset->labels), dataset->size))
     {
-        fprintf(stderr, "Could not read %d labels from: %s\n", dataset->size, path);
+        std::cerr << "Could not read " << dataset->size << " labels from: " << path << '\n';
         delete[] dataset->labels;
-        dataset->labels = NULL;
-        fclose(stream);
+        dataset->labels = nullptr;
         return;
     }
-
-    fclose(stream);
 }
 
 void Dataset::_get_images_from_file(const char *path, mnist_dataset_t *dataset)
 {
-    FILE *stream;
+    dataset->images = nullptr;
+
+    std::basic_ifstream<char> file(path, std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "Could not open file: " << path << '\n';
+        return;
+    }
+
     mnist_image_file_header_t header;
-
-    stream = fopen(path, "rb");
-
-    dataset->images = NULL;
-    if (NULL == stream)
+    if (!file.read(reinterpret_cast<char *>(&header), sizeof(header)))
     {
-        fprintf(stderr, "Could not open file: %s\n", path);
+        std::cerr << "Could not read image file header from: " << path << '\n';
         return;
     }
 
-    if (1 != fread(&header, sizeof(mnist_image_file_header_t), 1, stream))
+    // Convert from big endian to little endian
+    if (std::endian::native == std::endian::little)
     {
-        fprintf(stderr, "Could not read image file header from: %s\n", path);
-        fclose(stream);
-        return;
+        header.magic_number = __builtin_bswap32(header.magic_number);
+        header.number_of_images = __builtin_bswap32(header.number_of_images);
+        header.number_of_rows = __builtin_bswap32(header.number_of_rows);
+        header.number_of_columns = __builtin_bswap32(header.number_of_columns);
     }
-
-    header.magic_number = __builtin_bswap32(header.magic_number);
-    header.number_of_images = __builtin_bswap32(header.number_of_images);
-    header.number_of_rows = __builtin_bswap32(header.number_of_rows);
-    header.number_of_columns = __builtin_bswap32(header.number_of_columns);
 
     if (MNIST_IMAGE_MAGIC != header.magic_number)
     {
-        fprintf(stderr, "Invalid header read from image file: %s (%08X not %08X)\n", path, header.magic_number, MNIST_IMAGE_MAGIC);
-        fclose(stream);
+        std::cerr << "Invalid header read from image file: " << path
+                  << " (" << std::hex << header.magic_number << " not " << MNIST_IMAGE_MAGIC << ")\n";
         return;
     }
 
     if (MNIST_IMAGE_WIDTH != header.number_of_rows)
     {
-        fprintf(stderr, "Invalid number of image rows in image file %s (%d not %d)\n", path, header.number_of_rows, MNIST_IMAGE_WIDTH);
+        std::cerr << "Invalid number of image rows in image file " << path
+                  << " (" << header.number_of_rows << " not " << MNIST_IMAGE_WIDTH << ")\n";
     }
 
     if (MNIST_IMAGE_HEIGHT != header.number_of_columns)
     {
-        fprintf(stderr, "Invalid number of image columns in image file %s (%d not %d)\n", path, header.number_of_columns, MNIST_IMAGE_HEIGHT);
+        std::cerr << "Invalid number of image columns in image file " << path
+                  << " (" << header.number_of_columns << " not " << MNIST_IMAGE_HEIGHT << ")\n";
     }
 
     dataset->size = header.number_of_images;
-    dataset->images = (mnist_image_t *)malloc(dataset->size * sizeof(mnist_image_t));
+    dataset->images = new mnist_image_t[dataset->size];
 
-    if (dataset->images == NULL)
+    if (!file.read(reinterpret_cast<char *>(dataset->images), dataset->size * sizeof(mnist_image_t)))
     {
-        fprintf(stderr, "Could not allocated memory for %d images\n", dataset->size);
-        fclose(stream);
-        return;
-    }
-
-    if (dataset->size != fread(dataset->images, sizeof(mnist_image_t), dataset->size, stream))
-    {
-        fprintf(stderr, "Could not read %d images from: %s\n", dataset->size, path);
+        std::cerr << "Could not read " << dataset->size << " images from: " << path << '\n';
         delete[] dataset->images;
-        dataset->images = NULL;
-        fclose(stream);
+        dataset->images = nullptr;
         return;
     }
-
-    fclose(stream);
 }
