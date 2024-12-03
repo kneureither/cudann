@@ -5,6 +5,10 @@
 
 int main()
 {
+    // std::cout << "map_uint32(0x00000801): " << map_uint32(0x00000801) << std::endl;
+    std::cout << "__BYTE_ORDER__ " << __BYTE_ORDER__ << std::endl;
+    std::cout << "__ORDER_LITTLE_ENDIAN__ " << __ORDER_LITTLE_ENDIAN__ << std::endl;
+
     NeuralNetwork nn = NeuralNetwork(20, 5);
     nn.randomize_weights();
 
@@ -17,6 +21,17 @@ int main()
         }
         std::cout << std::endl;
     }
+
+    Dataset dataset = Dataset();
+    std::cout << "Dataset test size: " << dataset.get_test_size() << " Dataset train size: " << dataset.get_train_size() << std::endl;
+
+    mnist_image_t *sample = dataset.get_train_sample(0);
+    for (int i = 0; i < MNIST_IMAGE_SIZE; i++)
+    {
+        std::cout << (int)sample->pixels[i] << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Sample label: " << (int)dataset.get_train_label(0) << std::endl;
 
     return 0;
 }

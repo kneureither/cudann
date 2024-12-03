@@ -1,6 +1,8 @@
 #ifndef DATASET_H
 #define DATASET_H
 
+#include <cstdint>
+
 #define MNIST_LABEL_MAGIC 0x00000801
 #define MNIST_IMAGE_MAGIC 0x00000803
 #define MNIST_IMAGE_WIDTH 28
@@ -31,34 +33,37 @@ typedef struct mnist_dataset_t_
 {
     mnist_image_t *images;
     uint8_t *labels;
-    uint32_t size;
+    uint32_t size = -1;
 } mnist_dataset_t;
 
 class Dataset
 {
+public:
+    Dataset();
+    ~Dataset();
+
     const char *train_images_file = "dat/train-images-idx3-ubyte";
     const char *train_labels_file = "dat/train-labels-idx1-ubyte";
     const char *test_images_file = "dat/t10k-images-idx3-ubyte";
     const char *test_labels_file = "dat/t10k-labels-idx1-ubyte";
 
-    mnist_dataset_t *train_dataset;
-    mnist_dataset_t *test_dataset;
+    mnist_dataset_t train_dataset;
+    mnist_dataset_t test_dataset;
 
-    Dataset();
-    ~Dataset();
+    mnist_image_t *get_train_sample(int index);
+    mnist_image_t *get_test_sample(int index);
 
-    mnist_dataset_t *get_train_dataset();
-    mnist_dataset_t *get_test_dataset();
-
-    mnist_dataset_t *get_train_sample(int index);
-    mnist_dataset_t *get_test_sample(int index);
+    uint8_t get_train_label(int index);
+    uint8_t get_test_label(int index);
 
     int get_train_size();
     int get_test_size();
 
 private:
-    mnist_dataset_t *read_dataset(const char *image_path, const char *label_path);
-    void free_dataset(mnist_dataset_t *dataset);
+    void _read_from_file();
+    void _free_dataset(mnist_dataset_t *dataset);
+    void _get_labels_from_file(const char *path, mnist_dataset_t *dataset);
+    void _get_images_from_file(const char *path, mnist_dataset_t *dataset);
 };
 
 #endif // DATASET_H
