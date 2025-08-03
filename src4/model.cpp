@@ -5,64 +5,103 @@
 
 //// MODEL CLASSES ////
 
-SingleLayerModel::SingleLayerModel(int input_size, int output_size) {
-    LinearLayer linear_layer = LinearLayer(input_size, output_size);
-    this->layers.push_back(linear_layer);
-
-    this->loss = new SoftmaxCrossEntropyLoss(input_size);
+template<typename T>
+Model<T>::Model() {
+    // Initialize the model with an empty layer list
 }
 
-SingleLayerModel::~SingleLayerModel() {
-    delete this->loss;
+template<typename T>
+Model<T>::~Model() {
+    // Clean up the layers
+    for (auto& layer : layers) {
+        layer.reset();
+    }
+    layers.clear();
 }
 
+template<typename T>
+Tensor<T> Model<T>::forward(const Tensor<T>& in) {
+    Tensor<T> output = in;
+    for (auto& layer : layers) {
+        output = layer->forward(output);
+    }
+    return output;
+}
+
+template<typename T>
+void Model<T>::backward(const Tensor<T>& grad) {
+    Tensor<T> grad_out = grad;
+    for (auto it = layers.rbegin(); it != layers.rend(); ++it) {
+        grad_out = (*it)->backward(grad_out);
+    }
+}
+
+template<typename T>
+void Model<T>::step(T lr) {
+    for (auto& layer : layers) {
+        layer->step(lr);
+    }
+}
 
 
 
 
 //// LAYER CLASSES ////
-
-LinearLayer::LinearLayer(int input_size, int output_size) {
-    this->weights = Tensor<float>({input_size, output_size});
-    this->biases = Tensor<float>({output_size});
-    this->weights_grad = Tensor<float>({input_size, output_size});
-    this->biases_grad = Tensor<float>({output_size});
-
-    this->weights.random_init();
-    this->biases.zeros();
-    this->weights_grad.zeros();
-    this->biases_grad.zeros();
+    
+template<typename T>
+Linear<T>::Linear(size_t input_size, size_t output_size)
+    : input_size_(input_size)
+    , output_size_(output_size)
+    , W_(Tensor<T>({input_size, output_size}))
+    , b_(Tensor<T>({output_size}))
+    , W_grad_(Tensor<T>({input_size, output_size}))
+    , b_grad_(Tensor<T>({output_size}))
+{
+    W_.random(); // TODO maybe move to other initialization method at some point
+    b_.zeros();
+    W_grad_.zeros();
+    b_grad_.zeros();
 }
 
-Tensor<float> LinearLayer::forward(Tensor<float> input) {
-    this->input = input;
-    this->output = this->weights.matmul(input);
-    this->output += this->biases;
+template<typename T>
+Tensor<T> Linear<T>::forward(const Tensor<T>& ininput) {
+    this->input_cache_ = in; // Cache the input for backward pass
+    this->output = this->W_.matmul(input_cache_);
+    this->output += this->b_;
     return this->output;
 }
 
-Tensor<float> LinearLayer::backward(Tensor<float> dOut) {
-    this->biases_grad = dOut;
-    this->weights_grad += this->input.matmul(dOut);
-    return this->weights.matmul(dOut);
+template<typename T>
+Tensor<T> Linear<T>::backward(const Tensor<T>& grad_out) {
+    // grad_out: [batch_size, output_size]
+
+    // 1) gradients w.r.t. W and b
+    //    dW = X^T · dZ,   where X^T: [in, batch] and dZ: [batch, out] → [in, out]
+    this->W_grad_ = this->input_cache_.transpose().matmul(grad_out);
+
+    //    db = sum(dZ, axis=0) → [out]
+    this->b_grad_ = grad_out.sum(0);
+
+    // 2) gradient w.r.t. input
+    //    dX = dZ · W^T,   where dZ: [batch, out] and W^T: [out, in] → [batch, in]
+    Tensor<T> dX = grad_out.matmul(this->W_.transpose());
+    return dX;
 }
 
-void LinearLayer::update_weights(float learning_rate) {
-    this->weights_grad *= learning_rate;
-    this->weights -= this->weights_grad;
-    this->biases_grad *= learning_rate;
-    this->biases -= this->biases_grad;
-}
-
-void LinearLayer::reset_gradients() {
-    this->weights_grad.zeros();
-    this->biases_grad.zeros();
+template<typename T>
+void Linear<T>::step(float lr) {
+    this->W_grad_ *= lr;
+    this->b_grad_ *= lr;
+    // Update weights and biases
+    // W -= lr * dW, b -= lr * db
+    this->W_ -= this->W_grad_;
+    this->b_ -= this->b_grad_;
 }
 
 
 float SoftmaxCrossEntropyLoss::forward(Tensor<float> input, Tensor<float> y_true) {
     this->y_true = y_true;
-    this->logits = input
+    this->logits = input;
 }
 
 Tensor<float> SoftmaxCrossEntropyLoss::backward(float ) {

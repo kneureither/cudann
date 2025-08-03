@@ -36,30 +36,33 @@ public:
     Layer();
     virtual ~Layer();
 
-    virtual Tensor<T> forward(Tensor<T> input) = 0;
-    virtual Tensor<T> backward(Tensor<T> dOut) = 0;
+    virtual Tensor<T> forward(const Tensor<T>& in) = 0;
+    virtual Tensor<T> backward(const Tensor<T>& grad_out) = 0;
+    virtual void step(float lr) = 0;
 
+    // only to store the input and output tensors -> optional
     Tensor<T> input;
     Tensor<T> output;
 };
 
 template<typename T>
-class LinearLayer : public Layer<T>
+class Linear : public Layer<T>
 {
 public:
-    LinearLayer(int input_size, int output_size);
-    ~LinearLayer();
+    Linear(size_t input_size, size_t output_size);
+    ~Linear();
 
-    Tensor<float> forward(Tensor<float> input);
-    Tensor<float> backward(Tensor<float> dOut);
-    void update_weights(float learning_rate);
+    virtual Tensor<T> forward(const Tensor<T> &in) override;
+    virtual Tensor<T> backward(const Tensor<T> &grad_out) override;
+    virtual void step(float lr) override;
     void reset_gradients();
 
 private:
-    Tensor<float> weights;
-    Tensor<float> biases;
-    Tensor<float> weights_grad;
-    Tensor<float> biases_grad;
+    size_t input_size_;
+    size_t output_size_;
+    Tensor<T> W_, b_;
+    Tensor<T> input_cache_;
+    Tensor<T> W_grad_, b_grad_;
 };
 
 //// MODEL CLASSES ////
@@ -72,22 +75,11 @@ public:
     ~Model();
 
     // for training
-    virtual Tensor<T> forward(Tensor<T> input);
-    virtual Tensor<T> backward(Tensor<T> output, Tensor<T> dOut);
-    virtual void update_weights(float learning_rate);
+    Tensor<T> forward(const Tensor<T>& in);
+    void backward(const Tensor<T>& grad);
+    virtual void step(float lr);
 
-    // for validation
-    virtual Tensor<int> predict(Tensor<T> input);
-    std::vector<Layer> layers;
-    Loss *loss;
-};
-
-template<typename T>
-class SingleLayerModel : public Model<T>
-{
-public:
-    SingleLayerModel(int input_size, int output_size);
-    ~SingleLayerModel();
+    std::vector<std::unique_ptr<Layer<T>>> layers;
 };
 
 #endif

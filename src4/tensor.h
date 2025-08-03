@@ -139,41 +139,27 @@ public:
             data_ptr[i] = other.data_ptr[i];
         }
     }
-
-    // Zero out the tensor
     void zeros()
     {
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] = T();
-        }
+        for (int i = 0; i < data_size; i++) data_ptr[i] = T();
     }
 
     // Set the tensor to ones
     void ones()
     {
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] = T(1);
-        }
+        for (int i = 0; i < data_size; i++) data_ptr[i] = T(1);
     }
 
     // Randomize the tensor
     void random()
     {
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] = T(rand() % RAND_MAX);
-        }
+        for (int i = 0; i < data_size; i++) data_ptr[i] = T(rand() % RAND_MAX);
     }
 
     // Randomize the tensor with a glorot initialization
     void random_init()
     {
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] = T(rand() % RAND_MAX);
-        }
+        for (int i = 0; i < data_size; i++) data_ptr[i] = T(rand() % RAND_MAX);
     }
 
     // Destructor for Tensor
@@ -206,7 +192,6 @@ public:
         return data_ptr[i];
     }
 
-    // access the tensor according to the shape with [] operators for up to 4 dims
     T &operator[](int i, int j)
     {
         if (shape.size() != 2)
@@ -219,34 +204,6 @@ public:
         }
         return data_ptr[i * shape[1] + j];
     }
-
-    T &operator[](int i, int j, int k)
-    {
-        if (shape.size() != 3)
-        {
-            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 3D tensor");
-        }
-        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2])
-        {
-            throw std::out_of_range("Index out of bounds");
-        }
-        return data_ptr[i * shape[1] * shape[2] + j * shape[2] + k];
-    }
-
-    T &operator[](int i, int j, int k, int l)
-    {
-        if (shape.size() != 4)
-        {
-            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 4D tensor");
-        }
-        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2] || l < 0 || l >= shape[3])
-        {
-            throw std::out_of_range("Index out of bounds");
-        }
-        return data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l];
-    }
-
-    // set the tensor values to a specific value
 
     //// OTHER OPERATORS ////
 
@@ -302,53 +259,6 @@ public:
         return *this;
     }
 
-    Tensor<T> dot_1d(const Tensor<T> &other) const
-    {
-        if (shape.size() != 1 || other.shape.size() != 1)
-        {
-            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
-        }
-        if (shape[0] != other.shape[0])
-        {
-            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
-        }
-
-        Tensor<T> result({1});
-        for (int i = 0; i < shape[0]; i++)
-        {
-            result[0] += data_ptr[i] * other.data_ptr[i];
-        }
-        return result;
-    }
-
-    Tensor<T> dot_2d(const Tensor<T> &other) const
-    {
-        if (shape.size() != 2 || other.shape.size() != 1)
-        {
-            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
-        }
-        if (shape[1] != other.shape[0])
-        {
-            throw std::invalid_argument("Tried to dot product tensors with shape " + shape_to_string() + " and " + other.shape_to_string());
-        }
-
-        Tensor<T> result({shape[0], other.shape[1]});
-        for (int i = 0; i < shape[0]; i++)
-        {
-            for (int j = 0; j < other.shape[1]; j++)
-            {
-                T sum = 0;
-                for (int k = 0; k < shape[1]; k++)
-                {
-                    sum += data_ptr[i * shape[1] + k] * other.data_ptr[k * other.shape[1] + j];
-                }
-                result.data_ptr[i * other.shape[1] + j] = sum;
-            }
-        }
-
-        return result;
-    }
-
     Tensor<T> matmul(const Tensor<T> &other) const
     {
         if (shape.size() != 2 || other.shape.size() != 2)
@@ -377,6 +287,33 @@ public:
         }
 
         return result;
+    }
+
+    // Add method to transpose the tensor
+    Tensor<T> transpose() const
+    {
+        if (shape.size() == 1)
+        {
+            // 1D tensor transpose is just a copy
+            return *this;
+        }
+        else if (shape.size() == 2)
+        {
+            // 2D matrix transpose: swap dimensions
+            Tensor<T> result({shape[1], shape[0]});
+            for (int i = 0; i < shape[0]; i++)
+            {
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    result.data_ptr[j * shape[0] + i] = data_ptr[i * shape[1] + j];
+                }
+            }
+            return result;
+        }
+        else
+        {
+            throw std::invalid_argument("Transpose not implemented for tensors with more than 2 dimensions");
+        }
     }
 
     //// DEVICE MANAGEMENT ////
@@ -566,6 +503,82 @@ public:
         return *this; // Return a new tensor with the gathered elements
     }
 
+
+
+    ///// LEGAGCY METHODS /////
+
+    Tensor<T> dot_1d(const Tensor<T> &other) const
+    {
+        if (shape.size() != 1 || other.shape.size() != 1)
+        {
+            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
+        }
+        if (shape[0] != other.shape[0])
+        {
+            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
+        }
+
+        Tensor<T> result({1});
+        for (int i = 0; i < shape[0]; i++)
+        {
+            result[0] += data_ptr[i] * other.data_ptr[i];
+        }
+        return result;
+    }
+
+    Tensor<T> dot_2d(const Tensor<T> &other) const
+    {
+        if (shape.size() != 2 || other.shape.size() != 1)
+        {
+            throw std::invalid_argument("Tried to dot product tensors with shape " + std::to_string(shape.size()) + " and " + std::to_string(other.shape.size()));
+        }
+        if (shape[1] != other.shape[0])
+        {
+            throw std::invalid_argument("Tried to dot product tensors with shape " + shape_to_string() + " and " + other.shape_to_string());
+        }
+
+        Tensor<T> result({shape[0], other.shape[1]});
+        for (int i = 0; i < shape[0]; i++)
+        {
+            for (int j = 0; j < other.shape[1]; j++)
+            {
+                T sum = 0;
+                for (int k = 0; k < shape[1]; k++)
+                {
+                    sum += data_ptr[i * shape[1] + k] * other.data_ptr[k * other.shape[1] + j];
+                }
+                result.data_ptr[i * other.shape[1] + j] = sum;
+            }
+        }
+
+        return result;
+    }
+
+    T &operator[](int i, int j, int k)
+    {
+        if (shape.size() != 3)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 3D tensor");
+        }
+        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[i * shape[1] * shape[2] + j * shape[2] + k];
+    }
+
+    T &operator[](int i, int j, int k, int l)
+    {
+        if (shape.size() != 4)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 4D tensor");
+        }
+        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2] || l < 0 || l >= shape[3])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l];
+    }
 };
 
 #endif
