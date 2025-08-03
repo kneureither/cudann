@@ -91,7 +91,7 @@ bool test_tensor_matmul()
 
 bool test_dataloader()
 {
-    DataLoader train_loader = DataLoader("../dat/train-images-idx3-ubyte", "../dat/train-labels-idx1-ubyte", 2);
+    DataLoader train_loader = DataLoader("dat/train-images-idx3-ubyte", "dat/train-labels-idx1-ubyte", 2);
     std::cout << "Train loader size: " << train_loader.get_size() << std::endl;
     std::cout << "Train loader lable (0): " << (int)train_loader.get_label(0) << std::endl;
     std::cout << "Train loader image (0): " << std::endl
@@ -107,9 +107,107 @@ bool test_dataloader()
     return true;
 }
 
+bool test_tensor_sum()
+{
+    logger("test_tensor_sum");
+    Tensor<float> a({2, 3});
+    for (int i = 0; i < a.get_size(); i++)
+    {
+        a.get_data_ptr()[i] = i + 1;
+    }
+    std::cout << "Tensor: \n"
+              << a.to_string() << std::endl;
+
+    Tensor<float> sum2 = a.sum(0);
+    std::cout << "Sum over axis 0: \n"
+              << sum2.to_string() << std::endl;
+
+    if (sum2[0] != 1 + 4 || sum2[1] != 2 + 5 || sum2[2] != 3 + 6 )
+    {
+        return false;
+    }
+
+    Tensor<float> sum = a.sum(1);
+    std::cout << "Sum over axis 1: \n"
+              << sum.to_string() << std::endl;
+
+    if (sum[0] != 1 + 2 + 3 || sum[1] != 4 + 5 + 6)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
+bool test_model_init()
+{
+    logger("test_model_init");
+    Model<float> model;
+    model.layers.push_back(std::make_unique<Linear<float>>(3, 2));
+
+    std::cout << "Model initialized with 1 layer: " << model.layers.size() 
+              << " And input size: " << model.layers[0]->get_input_size() 
+              << " And output size: " << model.layers[0]->get_output_size() << std::endl;
+    Tensor<float> input({2, 3});
+    for (int i = 0; i < input.get_size(); i++)
+    {
+        input.get_data_ptr()[i] = i + 1;
+    }
+    std::cout << "Input: \n"
+              << input.to_string() << std::endl;
+
+    Tensor<float> output = model.forward(input);
+    std::cout << "Output: \n"
+              << output.to_string() << std::endl;
+
+    if (output.shape[0] != 2 || output.shape[1] != 2)
+        return false;
+
+    return true;
+}
+
+bool test_model_backward()
+{
+    logger("\n\ntest_model_backward");
+    Model<float> model;
+    model.layers.push_back(std::make_unique<Linear<float>>(3, 2));
+
+    Tensor<float> input({4, 3});
+    for (int i = 0; i < input.get_size(); i++)
+    {
+        input.get_data_ptr()[i] = i + 1;
+    }
+    std::cout << "Input: \n"
+              << input.to_string() << std::endl;
+
+    Tensor<float> output = model.forward(input);
+    std::cout << "Output: \n"
+              << output.to_string() << std::endl;
+
+    Tensor<float> grad_out({4, 2});
+    for (int i = 0; i < grad_out.get_size(); i++)
+    {
+        grad_out.get_data_ptr()[i] = 1.0f; // Simple gradient
+    }
+
+    std::cout << "Weights before backward pass: \n"
+              << model.layers[0]->get_weights().to_string() << std::endl;
+
+    model.backward(grad_out);
+    model.step(0.01f); // Perform a step with learning rate
+
+    std::cout << "Weights after backward pass: \n"
+              << model.layers[0]->get_weights().to_string() << std::endl;
+    return true;
+}
+
 int main()
 {
     test_tensor_creation();
     assert(test_tensor_matmul());
+    assert(test_tensor_sum());
     assert(test_dataloader());
+    assert(test_model_init());
+    assert(test_model_backward());
 }

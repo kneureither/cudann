@@ -10,6 +10,19 @@
 #include <numeric>
 #include <cmath>
 
+#include "utils.h"
+
+
+// TODOs
+// - Implement the sum method
+// - Implement the max method
+// - Implement the exp method
+// - Implement the log method
+// - Implement the argmax method
+
+// - on every method that creates a new tensor, check if the device is the same.
+// - implement the kernels for cuda
+
 enum class Device
 {
     CPU,
@@ -21,7 +34,7 @@ class Tensor
 {
 private:
     T *data_ptr;               // Pointer to the data array
-    int data_size;             // Total number of elements in the tensor
+    size_t data_size;             // Total number of elements in the tensor
     bool owns_data;            // Flag to track ownership for proper cleanup
     std::vector<T *> view_idx; // View indices for easier element access
     Device device;             // Device the tensor is on
@@ -37,10 +50,10 @@ private:
     }
 
     // Constructor for Tensor with specified shape
-    void allocate_memory(std::vector<int> shape)
+    void allocate_memory(std::vector<size_t> shape)
     {
         this->shape = shape;
-        data_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+        data_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
         allocate_memory();
     }
 
@@ -64,10 +77,10 @@ private:
     }
 
     // allocate memory on cuda device with specified shape
-    void allocate_cuda_memory(std::vector<int> shape)
+    void allocate_cuda_memory(std::vector<size_t> shape)
     {
         this->shape = shape;
-        data_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+        data_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
         allocate_cuda_memory();
     }
 
@@ -94,12 +107,17 @@ private:
     }
 #endif
 public:
-    std::vector<int> shape;
+    std::vector<size_t> shape;
     // Default constructor
     Tensor() : data_ptr(nullptr), data_size(0), owns_data(false) {}
 
     // Constructor for Tensor with specified shape
-    Tensor(std::vector<int> shape) : shape(shape), data_size(0), owns_data(false)
+    Tensor(std::vector<size_t> shape) : shape(shape), data_size(0), owns_data(false)
+    {
+        allocate_memory(shape);
+    }
+
+    Tensor(std::vector<size_t> shape, Device device) : shape(shape), data_size(0), owns_data(false), device(device)
     {
         allocate_memory(shape);
     }
@@ -109,7 +127,8 @@ public:
     {
         if (this != &other)
         {
-            if (this->owns_data)
+            // TODO perfomance improvement: check if the shape is the same, and dont reallocate
+            if (this->owns_data && this->shape != other.shape)
             {
                 free_memory();
             }
@@ -129,10 +148,6 @@ public:
     // Copy constructor
     Tensor(const Tensor &other) : shape(other.shape), data_size(other.data_size), owns_data(other.owns_data)
     {
-        if (this->owns_data)
-        {
-            free_memory();
-        }
         allocate_memory(other.shape);
         for (int i = 0; i < data_size; i++)
         {
@@ -153,13 +168,21 @@ public:
     // Randomize the tensor
     void random()
     {
-        for (int i = 0; i < data_size; i++) data_ptr[i] = T(rand() % RAND_MAX);
+        for (int i = 0; i < data_size; i++) data_ptr[i] = T(static_cast<double>(rand()) / RAND_MAX);
     }
 
     // Randomize the tensor with a glorot initialization
     void random_init()
     {
         for (int i = 0; i < data_size; i++) data_ptr[i] = T(rand() % RAND_MAX);
+    }
+
+    void random_uniform(T min, T max)
+    {
+        for (int i = 0; i < data_size; i++)
+        {
+            data_ptr[i] = min + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX / (max - min)));
+        }
     }
 
     // Destructor for Tensor
@@ -169,8 +192,8 @@ public:
     }
 
     // Getters for shape and data size
-    std::vector<int> get_shape() const { return shape; }
-    int get_size() const { return data_size; }
+    std::vector<size_t> get_shape() const { return shape; }
+    size_t get_size() const { return data_size; }
 
     // Getters for data pointer (useful for CUDA operations)
     T *get_data_ptr() { return data_ptr; }
@@ -210,15 +233,43 @@ public:
     // implement the += operator for the tensor
     Tensor<T> &operator+=(const Tensor<T> &other)
     {
-        if (shape != other.shape)
+        if (shape == other.shape)
         {
-            throw std::invalid_argument("Tried to add tensors with different shapes");
-        }
-        for (int i = 0; i < data_size; i++)
+            logger("Adding tensors with shape: " + shape_to_string() + " and " + other.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+            for (int i = 0; i < data_size; i++)
+            {
+                data_ptr[i] += other.data_ptr[i];
+            }
+            return *this;
+        } 
+        // adding a vector to matrix (e.g. [batch, features] + [features])
+        else if (shape.size() == 2 && other.shape.size() == 1 && shape[1] == other.shape[0])
         {
-            data_ptr[i] += other.data_ptr[i];
+            logger("Adding matrix with shape: " + shape_to_string() + " and vector with shape: " + other.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+            for (int i = 0; i < shape[0]; i++)
+            {
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    //logger("Adding i,j (" + std::to_string(i) + "," + std::to_string(j) + ") " + std::to_string(data_ptr[i * shape[1] + j]) + " and " + std::to_string(other.data_ptr[j]), "DEBUG", __FILE__, __LINE__);
+                    data_ptr[i * shape[1] + j] += other.data_ptr[j];
+                }
+            }
+            return *this;
         }
-        return *this;
+        // adding a scalar to the tensor
+        else if (other.shape.size() == 1 && other.shape[0] == 1 && shape.size() > 0)
+        {   
+            logger("Adding scalar to tensor with shape: " + shape_to_string() + " and scalar: " + std::to_string(other.data_ptr[0]), "DEBUG", __FILE__, __LINE__);
+            for (int i = 0; i < data_size; i++)
+            {
+                data_ptr[i] += other.data_ptr[0];
+            }
+            return *this;
+        }
+        else
+        {
+            throw std::invalid_argument("Tried to add tensors with different shapes: " + shape_to_string() + " and " + other.shape_to_string());
+        }
     }
 
     // implement the -= operator for the tensor
@@ -238,24 +289,15 @@ public:
     // implement the *= operator for the tensor
     Tensor<T> &operator*=(const Tensor<T> &other)
     {
-        if (shape != other.shape)
-        {
-            throw std::invalid_argument("Tried to multiply tensors with different shapes");
-        }
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] *= other.data_ptr[i];
-        }
+        if (shape != other.shape) throw std::invalid_argument("Tried to multiply tensors with different shapes");
+        for (int i = 0; i < data_size; i++) data_ptr[i] *= other.data_ptr[i];
         return *this;
     }
 
     // implement the '*=' operator for multiplying a tensor by a scalar
     Tensor<T> &operator*=(const T &scalar)
     {
-        for (int i = 0; i < data_size; i++)
-        {
-            data_ptr[i] *= scalar;
-        }
+        for (int i = 0; i < data_size; i++) data_ptr[i] *= scalar;
         return *this;
     }
 
@@ -289,7 +331,7 @@ public:
         return result;
     }
 
-    // Add method to transpose the tensor
+
     Tensor<T> transpose() const
     {
         if (shape.size() == 1)
@@ -466,12 +508,63 @@ public:
     }
 
     // Add method to compute the sum along a specified axis
-    Tensor<T> sum(int axis, bool keepdims) const
+    Tensor<T> sum(int axis) const
     {
-        // Implementation for sum
-        // This is a placeholder implementation
-        // You need to implement the logic to compute the sum along the specified axis
-        return *this; // Return a new tensor with the summed values
+        //check if axis is valid
+        if (axis < 0 || axis >= shape.size())
+        {
+            throw std::invalid_argument("Axis out of bounds");
+        }
+        if (shape.size() == 1)
+        {
+            // sum along the only axis
+            T sum = 0;
+            for (int i = 0; i < shape[0]; i++)
+            {
+                sum += data_ptr[i];
+            }
+            Tensor<T> result({1});
+            result[0] = sum;
+            return result;
+        }
+        else if (shape.size() == 2)
+        {
+            // sum along the specified axis
+            if (axis == 0)
+            {
+                // sum along rows
+                Tensor<T> result({shape[1]});
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    T sum = 0;
+                    for (int i = 0; i < shape[0]; i++)
+                    {
+                        sum += data_ptr[i * shape[1] + j];
+                    }
+                    result.data_ptr[j] = sum;
+                }
+                return result;
+            }
+            else if (axis == 1)
+            {
+                // sum along columns
+                Tensor<T> result({shape[0]});
+                for (int i = 0; i < shape[0]; i++)
+                {
+                    T sum = 0;
+                    for (int j = 0; j < shape[1]; j++)
+                    {
+                        sum += data_ptr[i * shape[1] + j];
+                    }
+                    result.data_ptr[i] = sum;
+                }
+                return result;
+            }
+        }
+        else {
+            throw std::invalid_argument("Sum not implemented for tensors with more than 2 dimensions");
+        }
+        return Tensor<T>(); // Return an empty tensor if the axis is not valid or the shape is not supported
     }
 
     // Add method to compute the natural logarithm of each element

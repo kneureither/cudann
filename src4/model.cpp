@@ -8,6 +8,7 @@
 template<typename T>
 Model<T>::Model() {
     // Initialize the model with an empty layer list
+    layers = std::vector<std::unique_ptr<Layer<T>>>();
 }
 
 template<typename T>
@@ -37,7 +38,7 @@ void Model<T>::backward(const Tensor<T>& grad) {
 }
 
 template<typename T>
-void Model<T>::step(T lr) {
+void Model<T>::step(float lr) {
     for (auto& layer : layers) {
         layer->step(lr);
     }
@@ -64,9 +65,9 @@ Linear<T>::Linear(size_t input_size, size_t output_size)
 }
 
 template<typename T>
-Tensor<T> Linear<T>::forward(const Tensor<T>& ininput) {
+Tensor<T> Linear<T>::forward(const Tensor<T>& in) {
     this->input_cache_ = in; // Cache the input for backward pass
-    this->output = this->W_.matmul(input_cache_);
+    this->output = this->input_cache_.matmul(this->W_);
     this->output += this->b_;
     return this->output;
 }
@@ -99,24 +100,17 @@ void Linear<T>::step(float lr) {
 }
 
 
-float SoftmaxCrossEntropyLoss::forward(Tensor<float> input, Tensor<float> y_true) {
-    this->y_true = y_true;
-    this->logits = input;
-}
+// float SoftmaxCrossEntropyLoss::forward(Tensor<float> input, Tensor<float> y_true) {
+//     this->y_true = y_true;
+//     this->logits = input;
+// }
 
-Tensor<float> SoftmaxCrossEntropyLoss::backward(float ) {
-    // Gradient of loss w.r.t. logits
-    int batch_size = this->logits.shape[0];
-    Tensor<float> dZ = (this->probs - this->y_true) / batch_size;
-    return dZ;
-}
+// Tensor<float> SoftmaxCrossEntropyLoss::backward(float ) {
+//     // Gradient of loss w.r.t. logits
+//     int batch_size = this->logits.shape[0];
+//     Tensor<float> dZ = (this->probs - this->y_true) / batch_size;
+//     return dZ;
+// }
 
-
-
-
-
-
-
-
-
-
+template class Model<float>;
+template class Linear<float>;
