@@ -7,15 +7,18 @@
 #include <random>
 #include <algorithm>
 
-mnist_image_t* DataLoader::get_sample(int idx) {
+mnist_image_t *DataLoader::get_sample(int idx)
+{
     return &(this->dataset.images[idx]);
 }
 
-uint8_t DataLoader::get_label(int idx) {
+uint8_t DataLoader::get_label(int idx)
+{
     return this->dataset.labels[idx];
 }
 
-void DataLoader::_load_images_from_file() {
+void DataLoader::_load_images_from_file()
+{
     this->dataset.images = nullptr;
 
     std::basic_ifstream<char> file(this->data_path, std::ios::binary);
@@ -70,10 +73,11 @@ void DataLoader::_load_images_from_file() {
         return;
     }
 
-    logger("Loaded " + std::to_string(this->dataset.size) + " images from: " + this->data_path);
+    logger("Loaded " + std::to_string(this->dataset.size) + " images from: " + this->data_path, "INFO", __FILE__, __LINE__);
 }
 
-void DataLoader::_load_labels_from_file() {
+void DataLoader::_load_labels_from_file()
+{
     this->dataset.labels = nullptr;
 
     std::basic_ifstream<char> file(this->label_path, std::ios::binary);
@@ -99,7 +103,7 @@ void DataLoader::_load_labels_from_file() {
     if (MNIST_LABEL_MAGIC != header.magic_number)
     {
         std::cout << "Invalid header read from label file: " << this->label_path
-                    << " (" << header.magic_number << " not " << MNIST_LABEL_MAGIC << ")\n";
+                  << " (" << header.magic_number << " not " << MNIST_LABEL_MAGIC << ")\n";
         return;
     }
 
@@ -114,10 +118,11 @@ void DataLoader::_load_labels_from_file() {
         return;
     }
 
-    logger("Loaded " + std::to_string(this->dataset.size) + " labels from: " + this->label_path);
+    logger("Loaded " + std::to_string(this->dataset.size) + " labels from: " + this->label_path, "INFO", __FILE__, __LINE__);
 }
 
-void DataLoader::_free_dataset() {
+void DataLoader::_free_dataset()
+{
     if (this->dataset.images != NULL)
         delete[] this->dataset.images;
     if (this->dataset.labels != NULL)
@@ -137,36 +142,45 @@ void DataLoader::shuffle_indices()
     }
 }
 
-int DataLoader::get_size() {
+int DataLoader::get_size()
+{
     return this->dataset.size;
 }
 
-Tensor<float> DataLoader::load_data_batch(int batch_idx) {
+Tensor<float> DataLoader::load_data_batch(int batch_idx)
+{
     Tensor<float> data({(int)this->batch_size, MNIST_IMAGE_SIZE});
-    for (int i = 0; i < this->batch_size; i++) {
+    for (int i = 0; i < this->batch_size; i++)
+    {
         mnist_image_t *image = this->get_sample(this->indices[batch_idx * this->batch_size + i]);
-        for (int j = 0; j < MNIST_IMAGE_SIZE; j++) {
+        for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
+        {
             data[i, j] = (float)image->pixels[j] / 255.0f;
         }
     }
     return data;
 }
 
-Tensor<int> DataLoader::load_labels_batch(int batch_idx) {
+Tensor<int> DataLoader::load_labels_batch(int batch_idx)
+{
     Tensor<int> labels({(int)this->batch_size, 1});
-    for (int i = 0; i < this->batch_size; i++) {
+    for (int i = 0; i < this->batch_size; i++)
+    {
         labels[i, 0] = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
     }
     return labels;
 }
 
-Tensor<float> DataLoader::load_data() {
+Tensor<float> DataLoader::load_data()
+{
     Tensor<float> data({this->get_size(), MNIST_IMAGE_SIZE});
 
     // Load the data
-    for (int i = 0; i < this->get_size(); i++) {
+    for (int i = 0; i < this->get_size(); i++)
+    {
         mnist_image_t *image = this->get_sample(this->indices[i]);
-        for (int j = 0; j < MNIST_IMAGE_SIZE; j++) {
+        for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
+        {
             data[i, j] = (float)image->pixels[j] / 255.0f;
         }
     }
@@ -174,28 +188,39 @@ Tensor<float> DataLoader::load_data() {
     return data;
 };
 
-Tensor<int> DataLoader::load_labels() {
+Tensor<int> DataLoader::load_labels()
+{
     Tensor<int> labels({this->get_size(), 1});
 
-    for (int i = 0; i < this->get_size(); i++) {
+    for (int i = 0; i < this->get_size(); i++)
+    {
         labels[i, 0] = (int)this->get_label(this->indices[i]);
     }
 
     return labels;
 };
 
-std::string DataLoader::get_image_as_string(int idx) {
+std::string DataLoader::get_image_as_string(int idx)
+{
     mnist_image_t *image = this->get_sample(idx);
     std::stringstream ss;
-    for (int i = 0; i < MNIST_IMAGE_SIZE; i++) {
+    for (int i = 0; i < MNIST_IMAGE_SIZE; i++)
+    {
         int pixel = (int)image->pixels[i];
-        if (pixel == 0) {
+        if (pixel == 0)
+        {
             ss << "  0 ";
-        } else if (pixel > 0 && pixel < 10) {
+        }
+        else if (pixel > 0 && pixel < 10)
+        {
             ss << "  " << pixel << " ";
-        } else if (pixel >= 10 && pixel < 100) {
+        }
+        else if (pixel >= 10 && pixel < 100)
+        {
             ss << " " << pixel << " ";
-        } else if (pixel >= 100 && pixel < 255) {
+        }
+        else if (pixel >= 100 && pixel < 255)
+        {
             ss << "" << pixel << " ";
         }
     }

@@ -10,23 +10,31 @@
 #include "dataloader.h"
 #include "tensor.h"
 
+#define BATCH_SIZE 8
 
-int main() {
-    Tensor<float> a({2});
-    a.zeros();
-    std::cout << "1-dim tensor: \n" << a.to_string() << std::endl;
+int main()
+{
 
-    Tensor<float> b({2, 3});
-    b.zeros();
-    std::cout << "2-dim tensor: \n" << b.to_string() << std::endl;
+    // load data
+    DataLoader train_loader = DataLoader(
+        "../dat/train-images-idx3-ubyte",
+        "../dat/train-labels-idx1-ubyte",
+        BATCH_SIZE);
 
-    Tensor<float> c({2, 3, 4});
-    c.zeros();
-    std::cout << "3-dim tensor: \n" << c.to_string() << std::endl;
+    DataLoader test_loader = DataLoader(
+        "../dat/t10k-images-idx3-ubyte",
+        "../dat/t10k-labels-idx1-ubyte",
+        BATCH_SIZE);
 
-    Tensor<float> d({2, 3, 4, 5});
-    d.zeros();
-    std::cout << "4-dim tensor: \n" << d.to_string() << std::endl;
-    
+    Tensor<float> train_data = train_loader.load_data();
+    Tensor<float> test_data = test_loader.load_data();
+
+    logger(train_data.shape_to_string(), "INFO", __FILE__, __LINE__);
+    logger(test_data.shape_to_string(), "INFO", __FILE__, __LINE__);
+
+    // initialize model
+    // setup timing
+    // train loop
+
     return 0;
 }

@@ -10,6 +10,6 @@
 ## Tests
 
 ```
-g++ -o tests tests.cpp -std=c++23
+ g++ -o tests tests.cpp dataloader.cpp -std=c++23
 ./tests
 ```
