@@ -146,7 +146,7 @@ public:
     }
 
     // Copy constructor
-    Tensor(const Tensor &other) : shape(other.shape), data_size(other.data_size), owns_data(other.owns_data)
+    Tensor(const Tensor &other) : shape(other.shape), data_size(other.data_size), owns_data(false)
     {
         allocate_memory(other.shape);
         for (int i = 0; i < data_size; i++)
@@ -214,18 +214,43 @@ public:
         }
         return data_ptr[i];
     }
+    const T &operator[](int i) const
+    {
+        if (shape.size() != 1)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 1D tensor");
+        }
+        if (i < 0 || static_cast<size_t>(i) >= data_size)
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[i];
+    }
 
-    T &operator[](int i, int j)
+    // 2D indexer (operator())
+    T &operator()(int i, int j)
     {
         if (shape.size() != 2)
         {
             throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 2D tensor");
         }
-        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1])
+        if (i < 0 || j < 0 || static_cast<size_t>(i) >= shape[0] || static_cast<size_t>(j) >= shape[1])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        return data_ptr[i * shape[1] + j];
+        return data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
+    }
+    const T &operator()(int i, int j) const
+    {
+        if (shape.size() != 2)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 2D tensor");
+        }
+        if (i < 0 || j < 0 || static_cast<size_t>(i) >= shape[0] || static_cast<size_t>(j) >= shape[1])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
     }
 
     //// OTHER OPERATORS ////
@@ -596,7 +621,78 @@ public:
         return *this; // Return a new tensor with the gathered elements
     }
 
+    // Softmax over axis=1 (rows). Stable: subtract row max, then exp/sum.
+    Tensor<T> softmax_axis1() const
+    {
+        if (shape.size() != 2)
+        {
+            throw std::invalid_argument("softmax_axis1 expects a 2D tensor");
+        }
+        const size_t B = shape[0], C = shape[1];
 
+        Tensor<T> out({B, C});
+        for (size_t i = 0; i < B; ++i)
+        {
+            // 1) row max
+            T m = data_ptr[i * C + 0];
+            for (size_t j = 1; j < C; ++j)
+            {
+                T v = data_ptr[i * C + j];
+                if (v > m)
+                    m = v;
+            }
+            // 2) sum exp(z - m)
+            T sum_exp = T(0);
+            for (size_t j = 0; j < C; ++j)
+            {
+                T e = std::exp(data_ptr[i * C + j] - m);
+                out.get_data_ptr()[i * C + j] = e; // temp store e
+                sum_exp += e;
+            }
+            // 3) normalize
+            for (size_t j = 0; j < C; ++j)
+            {
+                out.get_data_ptr()[i * C + j] /= sum_exp;
+            }
+        }
+        return out;
+    }
+
+    // Log-softmax over axis=1 (rows). Stable version.
+    Tensor<T> log_softmax_axis1() const
+    {
+        if (shape.size() != 2)
+        {
+            throw std::invalid_argument("log_softmax_axis1 expects a 2D tensor");
+        }
+        const size_t B = shape[0], C = shape[1];
+
+        Tensor<T> out({B, C});
+        for (size_t i = 0; i < B; ++i)
+        {
+            // 1) row max
+            T m = data_ptr[i * C + 0];
+            for (size_t j = 1; j < C; ++j)
+            {
+                T v = data_ptr[i * C + j];
+                if (v > m)
+                    m = v;
+            }
+            // 2) logsumexp = m + log(sum exp(z - m))
+            T sum_exp = T(0);
+            for (size_t j = 0; j < C; ++j)
+            {
+                sum_exp += std::exp(data_ptr[i * C + j] - m);
+            }
+            T lse = m + std::log(sum_exp);
+            // 3) logp = z - lse
+            for (size_t j = 0; j < C; ++j)
+            {
+                out.get_data_ptr()[i * C + j] = data_ptr[i * C + j] - lse;
+            }
+        }
+        return out;
+    }
 
     ///// LEGAGCY METHODS /////
 
@@ -647,30 +743,80 @@ public:
         return result;
     }
 
-    T &operator[](int i, int j, int k)
+    // 3D indexer (operator())
+    T &operator()(int i, int j, int k)
     {
         if (shape.size() != 3)
         {
             throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 3D tensor");
         }
-        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2])
+        if (i < 0 || j < 0 || k < 0 ||
+            static_cast<size_t>(i) >= shape[0] ||
+            static_cast<size_t>(j) >= shape[1] ||
+            static_cast<size_t>(k) >= shape[2])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        return data_ptr[i * shape[1] * shape[2] + j * shape[2] + k];
+        return data_ptr[static_cast<size_t>(i) * shape[1] * shape[2] +
+                        static_cast<size_t>(j) * shape[2] +
+                        static_cast<size_t>(k)];
+    }
+    const T &operator()(int i, int j, int k) const
+    {
+        if (shape.size() != 3)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 3D tensor");
+        }
+        if (i < 0 || j < 0 || k < 0 ||
+            static_cast<size_t>(i) >= shape[0] ||
+            static_cast<size_t>(j) >= shape[1] ||
+            static_cast<size_t>(k) >= shape[2])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[static_cast<size_t>(i) * shape[1] * shape[2] +
+                        static_cast<size_t>(j) * shape[2] +
+                        static_cast<size_t>(k)];
     }
 
-    T &operator[](int i, int j, int k, int l)
+    // 4D indexer (operator())
+    T &operator()(int i, int j, int k, int l)
     {
         if (shape.size() != 4)
         {
             throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 4D tensor");
         }
-        if (i < 0 || i >= shape[0] || j < 0 || j >= shape[1] || k < 0 || k >= shape[2] || l < 0 || l >= shape[3])
+        if (i < 0 || j < 0 || k < 0 || l < 0 ||
+            static_cast<size_t>(i) >= shape[0] ||
+            static_cast<size_t>(j) >= shape[1] ||
+            static_cast<size_t>(k) >= shape[2] ||
+            static_cast<size_t>(l) >= shape[3])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        return data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l];
+        return data_ptr[static_cast<size_t>(i) * shape[1] * shape[2] * shape[3] +
+                        static_cast<size_t>(j) * shape[2] * shape[3] +
+                        static_cast<size_t>(k) * shape[3] +
+                        static_cast<size_t>(l)];
+    }
+    const T &operator()(int i, int j, int k, int l) const
+    {
+        if (shape.size() != 4)
+        {
+            throw std::invalid_argument("Tried to access tensor with shape " + std::to_string(shape.size()) + " as 4D tensor");
+        }
+        if (i < 0 || j < 0 || k < 0 || l < 0 ||
+            static_cast<size_t>(i) >= shape[0] ||
+            static_cast<size_t>(j) >= shape[1] ||
+            static_cast<size_t>(k) >= shape[2] ||
+            static_cast<size_t>(l) >= shape[3])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        return data_ptr[static_cast<size_t>(i) * shape[1] * shape[2] * shape[3] +
+                        static_cast<size_t>(j) * shape[2] * shape[3] +
+                        static_cast<size_t>(k) * shape[3] +
+                        static_cast<size_t>(l)];
     }
 };
 

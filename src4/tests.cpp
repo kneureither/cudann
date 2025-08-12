@@ -61,9 +61,9 @@ bool test_tensor_matmul()
 
     Tensor<float> b({3, 2});
     b.zeros();
-    b[0, 0] = b[0, 1] = 1;
-    b[1, 0] = b[1, 1] = 2;
-    b[2, 0] = b[2, 1] = 3;
+    b(0, 0) = b(0, 1) = 1;
+    b(1, 0) = b(1, 1) = 2;
+    b(2, 0) = b(2, 1) = 3;
 
     std::cout << "RIGHT MATRIX: \n"
               << b.to_string() << std::endl;
@@ -77,13 +77,13 @@ bool test_tensor_matmul()
         return false;
     }
 
-    if (c[0, 0] != 1 * 1 + 2 * 2 + 3 * 3)
+    if (c(0, 0) != 1 * 1 + 2 * 2 + 3 * 3)
         return false;
-    else if (c[1, 0] != 1 * 4 + 2 * 5 + 3 * 6)
+    else if (c(1, 0) != 1 * 4 + 2 * 5 + 3 * 6)
         return false;
-    else if (c[0, 1] != c[0, 0])
+    else if (c(0, 1) != c(0, 0))
         return false;
-    else if (c[1, 1] != c[1, 0])
+    else if (c(1, 1) != c(1, 0))
         return false;
 
     return true;
@@ -194,6 +194,9 @@ bool test_model_backward()
     std::cout << "Weights before backward pass: \n"
               << model.layers[0]->get_weights().to_string() << std::endl;
 
+    
+
+    
     model.backward(grad_out);
     model.step(0.01f); // Perform a step with learning rate
 

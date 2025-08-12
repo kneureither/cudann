@@ -155,7 +155,7 @@ Tensor<float> DataLoader::load_data_batch(int batch_idx)
         mnist_image_t *image = this->get_sample(this->indices[batch_idx * this->batch_size + i]);
         for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
         {
-            data[i, j] = (float)image->pixels[j] / 255.0f;
+            data(i, j) = (float)image->pixels[j] / 255.0f;
         }
     }
     return data;
@@ -166,7 +166,7 @@ Tensor<int> DataLoader::load_labels_batch(int batch_idx)
     Tensor<int> labels({(size_t)this->batch_size, 1});
     for (int i = 0; i < this->batch_size; i++)
     {
-        labels[i, 0] = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
+        labels(i, 0) = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
     }
     return labels;
 }
@@ -181,7 +181,7 @@ Tensor<float> DataLoader::load_data()
         mnist_image_t *image = this->get_sample(this->indices[i]);
         for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
         {
-            data[i, j] = (float)image->pixels[j] / 255.0f;
+            data(i, j) = (float)image->pixels[j] / 255.0f;
         }
     }
 
@@ -194,7 +194,7 @@ Tensor<int> DataLoader::load_labels()
 
     for (int i = 0; i < this->get_size(); i++)
     {
-        labels[i, 0] = (int)this->get_label(this->indices[i]);
+        labels(i, 0) = (int)this->get_label(this->indices[i]);
     }
 
     return labels;
