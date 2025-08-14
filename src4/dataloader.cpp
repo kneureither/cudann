@@ -123,9 +123,9 @@ void DataLoader::_load_labels_from_file()
 
 void DataLoader::_free_dataset()
 {
-    if (this->dataset.images != NULL)
+    if (this->dataset.images != nullptr)
         delete[] this->dataset.images;
-    if (this->dataset.labels != NULL)
+    if (this->dataset.labels != nullptr)
         delete[] this->dataset.labels;
 }
 
@@ -142,9 +142,14 @@ void DataLoader::shuffle_indices()
     }
 }
 
-int DataLoader::get_size()
+size_t DataLoader::get_size()
 {
     return this->dataset.size;
+}
+
+size_t DataLoader::get_max_num_batches()
+{
+    return std::floor(this->get_size() / this->batch_size);
 }
 
 Tensor<float> DataLoader::load_data_batch(int batch_idx)
@@ -163,10 +168,10 @@ Tensor<float> DataLoader::load_data_batch(int batch_idx)
 
 Tensor<int> DataLoader::load_labels_batch(int batch_idx)
 {
-    Tensor<int> labels({(size_t)this->batch_size, 1});
+    Tensor<int> labels({(size_t)this->batch_size});
     for (int i = 0; i < this->batch_size; i++)
     {
-        labels(i, 0) = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
+        labels[i] = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
     }
     return labels;
 }
@@ -190,11 +195,11 @@ Tensor<float> DataLoader::load_data()
 
 Tensor<int> DataLoader::load_labels()
 {
-    Tensor<int> labels({(size_t) this->get_size(), 1});
+    Tensor<int> labels({(size_t) this->get_size()});
 
     for (int i = 0; i < this->get_size(); i++)
     {
-        labels(i, 0) = (int)this->get_label(this->indices[i]);
+        labels[i] = (int)this->get_label(this->indices[i]);
     }
 
     return labels;

@@ -19,6 +19,18 @@ add_executable(tests
     # Add any other .cpp files here
 )
 
+add_executable(main
+    src4/main.cpp
+    src4/dataloader.cpp
+    # src4/model.cpp
+    # Add any other .cpp files here
+)
+
+set_target_properties(main PROPERTIES
+    COMPILE_FLAGS "-g"
+    LINK_FLAGS "-g"
+)
+
 # Optional: if you want to create a library
 # add_library(cudann_lib
 #     src4/dataloader.cpp

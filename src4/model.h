@@ -4,28 +4,93 @@
 #include "tensor.h"
 #include "utils.h"
 
+
+enum class Reduction {Mean, Sum};
+
 ////  LOSS CLASSES ////
+template<typename T>
 class Loss
 {
 public:
-    virtual Tensor<float> forward(Tensor<float> input, Tensor<float> y_true) = 0;
-    virtual Tensor<float> backward(Tensor<float> dOut) = 0;
+    virtual T forward(const Tensor<T>& logits, const Tensor<int>& targets) = 0;
+    virtual Tensor<T> backward() = 0;
 };
 
-class SoftmaxCrossEntropyLoss : public Loss
+template<typename T>
+class SoftmaxCrossEntropy : public Loss<T>  
 {
+    Tensor<T> props; // softmax output
 public:
-    SoftmaxCrossEntropyLoss(int input_size);
-    ~SoftmaxCrossEntropyLoss();
+    explicit SoftmaxCrossEntropy(Reduction red = Reduction::Mean) 
+        : reduction_(red) {};
 
-    Tensor<float> forward(Tensor<float> input, Tensor<float> y_true);
-    Tensor<float> backward(float loss);
+    T forward(const Tensor<T>& logits, const Tensor<int>& targets) override {
+        if (logits.shape.size() != 2) {
+            throw std::invalid_argument("Loss forward: logits must be 2D [B,C]");
+        }
+        if (targets.shape.size() != 1) {
+            throw std::invalid_argument("Loss forward: targets must be 1D [B]");
+        }
+        B_ = logits.shape[0];
+        C_ = logits.shape[1];
+        if (targets.shape[0] != B_) {
+            throw std::invalid_argument("Loss forward: targets length != batch size");
+        }
+
+        // log_probs for stable NLL
+        Tensor<T> log_probs = logits.log_softmax_axis1(); // [B,C]
+        // also cache probs for backward
+        cached_probs_ = log_probs.exp(); // [B,C]
+        cached_targets_ = targets; // [B]
+
+        // Compute NLL: loss_i = -log_probs[i, targets[i]]
+        T total = T(0);
+        for (size_t i = 0; i < B_; ++i)
+        {
+            int yi = cached_targets_[static_cast<int>(i)]; // targets is 1D int tensor
+            if (yi < 0 || static_cast<size_t>(yi) >= C_)
+            {
+                throw std::out_of_range("targets contain class out of range");
+            }
+            total += -log_probs(static_cast<int>(i), yi);
+        }
+
+        if (reduction_ == Reduction::Mean)
+        {
+            last_loss_ = total / static_cast<T>(B_);
+        }
+        else
+        { // Reduction::Sum
+            last_loss_ = total;
+        }
+        return last_loss_;
+    };
+
+    Tensor<T> backward() override {
+        // grad = probs
+        Tensor<T> grad = cached_probs_; // copy [B,C]
+
+        // subtract 1 at the true class for each row
+        for (int i = 0; i < B_; ++i)
+        {
+            int yi = cached_targets_[i];
+            grad(i, yi) -= T(1);
+        }
+
+        // scale for reduction
+        if (reduction_ == Reduction::Mean)
+        {
+            grad *= (T(1) / static_cast<T>(B_));
+        }
+        return grad;
+    };
 
 private:
-    Tensor<float> softmax;
-    Tensor<float> log_softmax;
-    Tensor<float> y_true;
-    Tensor<float> logits;
+    Reduction reduction_;
+    Tensor<T> cached_probs_; // [B, C] softmax(logits)
+    Tensor<int> cached_targets_; // [B]
+    size_t B_{0}, C_{0};
+    T last_loss_{0};
 };
 
 //// LAYER CLASSES ////
@@ -52,6 +117,55 @@ public:
 
     Tensor<T> output; // Output of the layer, used for backward pass
 };
+
+template <typename T>
+class Activation : public Layer<T>
+{
+public:
+    Tensor<T> forward(const Tensor<T> &in) override = 0;
+    Tensor<T> backward(const Tensor<T> &grad_out) override = 0;
+    void step(float) override { /* no params */ }
+    Tensor<T> output;
+};
+
+template<typename T>
+class ReLu : public Activation<T>
+{
+public: 
+    ReLu() : input_size_(0) {};
+    ReLu(size_t input_size) : input_size_(input_size) {};
+    ~ReLu();
+
+    Tensor<T> forward(const Tensor<T> &in) override;
+    Tensor<T> backward(const Tensor<T> &grad_out) override;
+    virtual void step(float lr) override;
+
+    size_t get_input_size() const override { return input_size_; }
+    size_t get_output_size() const override { return input_size_; }
+
+private:
+    size_t input_size_;
+    Tensor<T> mask;
+};
+
+template <typename T>
+Tensor<T> ReLu<T>::forward(const Tensor<T> &in)
+{
+    // shape of in: [batch_size, input_size]
+    mask = (in > 0);
+    this->output = in;
+    this->output *= mask;
+    return this->output;
+}
+
+template <typename T>
+Tensor<T> ReLu<T>::backward(const Tensor<T> &grad_out)
+{
+    // grad_out: [batch_size, output_size]
+    Tensor<T> dX = grad_out;
+    dX *= mask;
+    return dX;
+}
 
 template<typename T>
 class Linear : public Layer<T>
@@ -109,9 +223,7 @@ Linear<T>::Linear(size_t input_size, size_t output_size)
     // Xavier uniform initialization
     float limit = std::sqrt(6.0f / (input_size + output_size));
     W_.random_uniform(-limit, limit);
-    logger("Linear layer initialized with weights: \n" + W_.to_string(), "DEBUG", __FILE__, __LINE__);
-    b_[0] = 0.7; // Initialize bias to zero
-    b_[1] = 0.5;
+    b_.zeros();
     W_grad_.zeros();
     b_grad_.zeros();
 }
@@ -120,15 +232,15 @@ template <typename T>
 Tensor<T> Linear<T>::forward(const Tensor<T> &in)
 {
     // shape of in: [batch_size, input_size]
-    logger("Linear forward pass with input: \n" + in.to_string(), "DEBUG", __FILE__, __LINE__);
+    // logger("Linear forward pass with input: \n" + in.to_string(), "DEBUG", __FILE__, __LINE__);
     this->input_cache_ = in; // Cache the input for backward pass
-    logger("Linear forward pass input_cache_: \n" + input_cache_.to_string(), "DEBUG", __FILE__, __LINE__);
+    // logger("Linear forward pass input_cache_: \n" + input_cache_.to_string(), "DEBUG", __FILE__, __LINE__);
     this->output = this->input_cache_.matmul(this->W_);
-    logger("Linear forward pass output: \n" + this->output.to_string(), "DEBUG", __FILE__, __LINE__);
-    logger("Linear forward pass bias \n: " + this->b_.to_string(), "DEBUG", __FILE__, __LINE__);
+    //logger("Linear forward pass output: \n" + this->output.to_string(), "DEBUG", __FILE__, __LINE__);
+    //logger("Linear forward pass bias \n: " + this->b_.to_string(), "DEBUG", __FILE__, __LINE__);
     this->output += this->b_;
-    logger("Linear forward pass output after adding bias: \n" + this->output.to_string(), "DEBUG", __FILE__, __LINE__);
-    logger("Linear forward pass output shape: " + this->output.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+    //logger("Linear forward pass output after adding bias: \n" + this->output.to_string(), "DEBUG", __FILE__, __LINE__);
+    //logger("Linear forward pass output shape: " + this->output.shape_to_string(), "DEBUG", __FILE__, __LINE__);
     return this->output;
 }
 
@@ -212,6 +324,8 @@ template <typename T>
 void Model<T>::backward(const Tensor<T> &grad)
 {
     Tensor<T> grad_out = grad;
+    //logger("grad values: " + grad.to_string());
+    //logger("grad out values: " + grad_out.to_string());
     for (auto it = layers.rbegin(); it != layers.rend(); ++it)
     {
         grad_out = (*it)->backward(grad_out);

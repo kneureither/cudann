@@ -17,7 +17,11 @@ inline void logger(const std::string& message, const std::string& level = "INFO"
     if (level == "INFO" && std::string(LOG_LEVEL) == "ERROR") {
         return;
     }
-    std::cout << "[" << level << "] " << message << " (" << file << ":" << line << ")" << std::endl;
+    std::string location = "";
+    if (file != __FILE__) {
+        location = " ( " + file + ":" + std::to_string(line) + ")";
+    }
+    std::cout << "[" << level << "] " << message << location << std::endl;
 }
 
 

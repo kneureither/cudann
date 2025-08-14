@@ -205,12 +205,85 @@ bool test_model_backward()
     return true;
 }
 
-int main()
-{
+bool test_tensor_log_softmax_axis1() {
+    logger("test_tensor_log_softmax_axis1");
+    
+    // Test case 1: Simple 2x3 tensor
+    Tensor<float> input({2, 3});
+    input.get_data_ptr()[0] = 1.0f; input.get_data_ptr()[1] = 2.0f; input.get_data_ptr()[2] = 3.0f;
+    input.get_data_ptr()[3] = 4.0f; input.get_data_ptr()[4] = 5.0f; input.get_data_ptr()[5] = 6.0f;
+    
+    std::cout << "Input tensor:\n" << input.to_string() << std::endl;
+    
+    Tensor<float> result = input.log_softmax_axis1();
+    std::cout << "Log-softmax result:\n" << result.to_string() << std::endl;
+    
+    // Verify properties of log-softmax:
+    // 1. Sum of exp(log_softmax) should be 1 for each row
+    for (int i = 0; i < 2; i++) {
+        float sum_exp = 0.0f;
+        for (int j = 0; j < 3; j++) {
+            sum_exp += std::exp(result.get_data_ptr()[i * 3 + j]);
+        }
+        std::cout << "Row " << i << " sum of exp(log_softmax): " << sum_exp << std::endl;
+        assert(std::abs(sum_exp - 1.0f) < 1e-6f && "Sum of exp(log_softmax) should be 1");
+    }
+    
+    // 2. All values should be negative or zero (since log(p) <= 0 for p <= 1)
+    for (int i = 0; i < 6; i++) {
+        assert(result.get_data_ptr()[i] <= 0.0f && "Log-softmax values should be <= 0");
+    }
+    
+    // Test case 2: Edge case with identical values in a row
+    Tensor<float> identical({1, 3});
+    identical.get_data_ptr()[0] = 2.0f;
+    identical.get_data_ptr()[1] = 2.0f;
+    identical.get_data_ptr()[2] = 2.0f;
+    
+    Tensor<float> identical_result = identical.log_softmax_axis1();
+    std::cout << "Identical values log-softmax:\n" << identical_result.to_string() << std::endl;
+    
+    // Should be log(1/3) ≈ -1.0986 for all elements
+    float expected = std::log(1.0f / 3.0f);
+    for (int i = 0; i < 3; i++) {
+        assert(std::abs(identical_result.get_data_ptr()[i] - expected) < 1e-5f && 
+               "Identical values should give log(1/n)");
+    }
+    
+    // Test case 3: Test numerical stability with large values
+    Tensor<float> large({1, 3});
+    large.get_data_ptr()[0] = 1000.0f;
+    large.get_data_ptr()[1] = 1001.0f;
+    large.get_data_ptr()[2] = 1002.0f;
+    
+    Tensor<float> large_result = large.log_softmax_axis1();
+    std::cout << "Large values log-softmax:\n" << large_result.to_string() << std::endl;
+    
+    // Should not have NaN or inf values
+    for (int i = 0; i < 3; i++) {
+        assert(!std::isnan(large_result.get_data_ptr()[i]) && "Should not produce NaN");
+        assert(!std::isinf(large_result.get_data_ptr()[i]) && "Should not produce inf");
+    }
+    
+    // Test case 4: Error case - should throw for non-2D tensor
+    try {
+        Tensor<float> wrong_dim({3});
+        wrong_dim.log_softmax_axis1();
+        assert(false && "Should throw for 1D tensor");
+    } catch (const std::invalid_argument& e) {
+        std::cout << "Correctly caught exception for 1D tensor: " << e.what() << std::endl;
+    }
+    
+    std::cout << "All log_softmax_axis1 tests passed!" << std::endl;
+    return true;
+}
+
+int main() {
     test_tensor_creation();
     assert(test_tensor_matmul());
     assert(test_tensor_sum());
     assert(test_dataloader());
     assert(test_model_init());
     assert(test_model_backward());
+    assert(test_tensor_log_softmax_axis1());
 }

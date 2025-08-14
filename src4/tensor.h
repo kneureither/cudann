@@ -54,6 +54,7 @@ private:
     {
         this->shape = shape;
         data_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+        logger("allocate_memory(shape) data size: " + std::to_string(data_size), "DEBUG", __FILE__, __LINE__);
         allocate_memory();
     }
 
@@ -62,10 +63,13 @@ private:
     {
         if (owns_data && data_ptr != nullptr)
         {
+            logger("freeing memory", "DEBUG", __FILE__, __LINE__);
             delete[] data_ptr;
             data_ptr = nullptr;
         }
         owns_data = false;
+        this->data_size = 0;
+        this->shape = std::vector<size_t>({});
     }
 
 #if CUDA_AVAILABLE
@@ -127,9 +131,13 @@ public:
     {
         if (this != &other)
         {
+            logger("assigning new tensor, old shape " + this->shape_to_string() + " other shape: " + other.shape_to_string() +
+                       " this owns data " + std::to_string(this->owns_data),
+                   "DEBUG", __FILE__, __LINE__);
             // TODO perfomance improvement: check if the shape is the same, and dont reallocate
-            if (this->owns_data && this->shape != other.shape)
+            if (this->owns_data)
             {
+                logger("freeing memory", "DEBUG", __FILE__, __LINE__);
                 free_memory();
             }
             shape = other.shape;
@@ -210,7 +218,7 @@ public:
         }
         if (i < 0 || i >= data_size)
         {
-            throw std::out_of_range("Index out of bounds");
+            throw std::out_of_range("Index out of bounds: " + std::to_string(i));
         }
         return data_ptr[i];
     }
@@ -311,7 +319,7 @@ public:
         return *this;
     }
 
-    // implement the *= operator for the tensor
+    // implement the *= as element-wise * operator for the tensor
     Tensor<T> &operator*=(const Tensor<T> &other)
     {
         if (shape != other.shape) throw std::invalid_argument("Tried to multiply tensors with different shapes");
@@ -324,6 +332,15 @@ public:
     {
         for (int i = 0; i < data_size; i++) data_ptr[i] *= scalar;
         return *this;
+    }
+
+    // implement the '>' operator for masking
+    Tensor<int> operator>(const T &scalar) const {
+        Tensor<int> result(shape);
+        for(int i=0; i<data_size; i++) {
+            result.data_ptr[i] = data_ptr[i] > scalar;
+        }
+        return result;
     }
 
     Tensor<T> matmul(const Tensor<T> &other) const
@@ -502,6 +519,8 @@ public:
     // print the shape of the tensor
     std::string shape_to_string() const
     {
+        if (shape.size() == 0) return std::string("( null )");
+
         std::stringstream ss;
         ss << "( ";
         for (int i = 0; i < shape.size() - 1; i++)
@@ -527,7 +546,17 @@ public:
         Tensor<T> result(shape);
         for (int i = 0; i < data_size; i++)
         {
-            result.data_ptr[i] = std::exp(data_ptr[i]);
+            result.data_ptr[i] = std::exp(this->data_ptr[i]);
+        }
+        return result;
+    }
+
+    // compute element-wise max(0, elem) for relu layer
+    Tensor<T> relu() const {
+        Tensor<T> result(shape);
+
+        for(int i = 0; i < data_size; i++) {
+            result.data_ptr[i] = std::max(0, this->data_ptr[i]);
         }
         return result;
     }
@@ -584,6 +613,8 @@ public:
                     result.data_ptr[i] = sum;
                 }
                 return result;
+            } else {
+                throw std::invalid_argument("sum(): axis must be 0 or 1, was " + std::to_string(axis));
             }
         }
         else {
@@ -603,22 +634,119 @@ public:
         return result;
     }
 
-    // Add method to compute the index of the maximum value along a specified axis
-    Tensor<int> argmax(int axis) const
+    Tensor<T> reduce_max(int axis, bool keepdim) const
     {
-        // Implementation for argmax
-        // This is a placeholder implementation
-        // You need to implement the logic to find the index of the maximum value along the specified axis
-        return Tensor<int>({1}); // Return a new tensor with the indices
+        if (shape.size() != 2)
+            throw std::invalid_argument("reduce_max: 2D only");
+        const size_t B = shape[0], C = shape[1];
+
+        if (axis == 0)
+        { // max over rows → [C] or [1,C]
+            Tensor<T> out(keepdim ? std::vector<size_t>{1, C} : std::vector<size_t>{C});
+            for (size_t j = 0; j < C; ++j)
+            {
+                T m = data_ptr[0 * C + j];
+                for (size_t i = 1; i < B; ++i)
+                {
+                    T v = data_ptr[i * C + j];
+                    if (v > m)
+                        m = v;
+                }
+                if (keepdim)
+                    out.get_data_ptr()[j] = m;
+                else
+                    out.get_data_ptr()[j] = m;
+            }
+            return out;
+        }
+        else if (axis == 1)
+        { // max over cols → [B] or [B,1]
+            Tensor<T> out(keepdim ? std::vector<size_t>{B, 1} : std::vector<size_t>{B});
+            for (size_t i = 0; i < B; ++i)
+            {
+                T m = data_ptr[i * C + 0];
+                for (size_t j = 1; j < C; ++j)
+                {
+                    T v = data_ptr[i * C + j];
+                    if (v > m)
+                        m = v;
+                }
+                out.get_data_ptr()[i] = m; // layout works for both shapes here
+            }
+            return out;
+        }
+        else
+        {
+            throw std::invalid_argument("reduce_max: axis must be 0 or 1");
+        }
     }
 
-    // Add method to gather elements along a specified axis
-    Tensor<T> gather(int axis, const Tensor<int> &indices) const
+    Tensor<int> argmax(int axis) const
     {
-        // Implementation for gather
-        // This is a placeholder implementation
-        // You need to implement the logic to gather elements along the specified axis
-        return *this; // Return a new tensor with the gathered elements
+        if (shape.size() == 1) {
+            Tensor<int> out({1});
+            const size_t B = shape[0];
+            size_t best_i = 0;
+            T best_v = data_ptr[0];
+            for (size_t i = 1; i < B; i++) {
+                T v = data_ptr[i];
+                if (v > best_v)
+                {
+                    best_v = v;
+                    best_i = i;
+                }
+            }
+            out.get_data_ptr()[0] = static_cast<int>(best_i);
+            return out;
+        } else if (shape.size() == 2) {
+            const size_t B = shape[0], C = shape[1];
+            if (axis == 0)
+            { // along rows → [C]
+                Tensor<int> out({C});
+                for (size_t j = 0; j < C; ++j)
+                {
+                    size_t best_i = 0;
+                    T best_v = data_ptr[0 * C + j];
+                    for (size_t i = 1; i < B; ++i)
+                    {
+                        T v = data_ptr[i * C + j];
+                        if (v > best_v)
+                        {
+                            best_v = v;
+                            best_i = i;
+                        }
+                    }
+                    out.get_data_ptr()[j] = static_cast<int>(best_i);
+                }
+                return out;
+            }
+            else if (axis == 1)
+            { // along cols → [B]
+                Tensor<int> out({B});
+                for (size_t i = 0; i < B; ++i)
+                {
+                    size_t best_j = 0;
+                    T best_v = data_ptr[i * C + 0];
+                    for (size_t j = 1; j < C; ++j)
+                    {
+                        T v = data_ptr[i * C + j];
+                        if (v > best_v)
+                        {
+                            best_v = v;
+                            best_j = j;
+                        }
+                    }
+                    out.get_data_ptr()[i] = static_cast<int>(best_j);
+                }
+                return out;
+            }
+            else
+            {
+                throw std::invalid_argument("argmax: axis must be 0 or 1");
+            }
+        } else {
+            throw std::invalid_argument("argmax: 1D or 2D only");
+        }
     }
 
     // Softmax over axis=1 (rows). Stable: subtract row max, then exp/sum.

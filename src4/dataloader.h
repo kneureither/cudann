@@ -38,7 +38,8 @@ class DataLoader {
 
         mnist_image_t *get_sample(int idx);
         uint8_t get_label(int idx);
-        int get_size();
+        size_t get_size();
+        size_t get_max_num_batches();
         bool shuffle = false;
         int shuffle_seed = 42;
         unsigned int batch_size;
