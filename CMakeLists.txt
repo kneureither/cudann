@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add debug symbols
 set(CMAKE_BUILD_TYPE Debug)
+add_compile_options(-g -O0 -fno-omit-frame-pointer)  # good stack traces
 
 # Include directories for headers
 include_directories(src4)

@@ -85,8 +85,9 @@ int main() {
 
     // setup model
     Model<precision> model;
-    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, MNIST_LABELS));
-    
+    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, 30));
+    model.layers.push_back(std::make_unique<ReLu<precision>>(30));
+    model.layers.push_back(std::make_unique<Linear<precision>>(30, MNIST_LABELS));
 
     // setup loss
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
@@ -118,13 +119,11 @@ int main() {
             model.backward(d_logits); // backprop through all layers
 
             // Update model parameters
-            model.step(learning_rate); // Perform a step with learning rate
+            model.step(learning_rate);
 
             if (batch_idx % log_evey_steps == 0) {
                 logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "INFO");
             }
-
-
 
             // eval
             if (batch_idx % eval_every_steps == 0) {

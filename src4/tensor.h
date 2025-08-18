@@ -335,12 +335,13 @@ public:
     }
 
     // implement the '>' operator for masking
-    Tensor<int> operator>(const T &scalar) const {
-        Tensor<int> result(shape);
+    Tensor<T> operator>(const T &scalar) const {
+        Tensor<T> result(shape);
         for(int i=0; i<data_size; i++) {
-            result.data_ptr[i] = data_ptr[i] > scalar;
+            result.data_ptr[i] = static_cast<T> (data_ptr[i] > scalar);
         }
         return result;
+        
     }
 
     Tensor<T> matmul(const Tensor<T> &other) const

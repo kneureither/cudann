@@ -124,7 +124,7 @@ class Activation : public Layer<T>
 public:
     Tensor<T> forward(const Tensor<T> &in) override = 0;
     Tensor<T> backward(const Tensor<T> &grad_out) override = 0;
-    void step(float) override { /* no params */ }
+    virtual void step(T lr) override {};
     Tensor<T> output;
 };
 
@@ -132,13 +132,13 @@ template<typename T>
 class ReLu : public Activation<T>
 {
 public: 
-    ReLu() : input_size_(0) {};
+    ReLu() : input_size_(0), mask() {};
     ReLu(size_t input_size) : input_size_(input_size) {};
-    ~ReLu();
+    ~ReLu() {};
 
     Tensor<T> forward(const Tensor<T> &in) override;
     Tensor<T> backward(const Tensor<T> &grad_out) override;
-    virtual void step(float lr) override;
+    virtual void step(float lr) override {return;};
 
     size_t get_input_size() const override { return input_size_; }
     size_t get_output_size() const override { return input_size_; }
@@ -152,7 +152,7 @@ template <typename T>
 Tensor<T> ReLu<T>::forward(const Tensor<T> &in)
 {
     // shape of in: [batch_size, input_size]
-    mask = (in > 0);
+    this->mask = (in > 0);
     this->output = in;
     this->output *= mask;
     return this->output;
