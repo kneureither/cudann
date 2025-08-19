@@ -13,16 +13,6 @@
 #include "utils.h"
 
 
-// TODOs
-// - Implement the sum method
-// - Implement the max method
-// - Implement the exp method
-// - Implement the log method
-// - Implement the argmax method
-
-// - on every method that creates a new tensor, check if the device is the same.
-// - implement the kernels for cuda
-
 enum class Device
 {
     CPU,
@@ -341,8 +331,10 @@ public:
             result.data_ptr[i] = static_cast<T> (data_ptr[i] > scalar);
         }
         return result;
-        
+
     }
+
+    //// MATHEMATICAL OPERATIONS ////
 
     Tensor<T> matmul(const Tensor<T> &other) const
     {
@@ -401,147 +393,7 @@ public:
         }
     }
 
-    //// DEVICE MANAGEMENT ////
-
-    // bring the tensor to a specific device
-    void to_device(Device device)
-    {
-        if (device == this->device)
-        {
-            // do nothing
-        }
-        else if (device == Device::CPU && this->device == Device::GPU)
-        {
-            throw std::runtime_error("Tried to move tensor from GPU to CPU");
-            // move the tensor to the CPU
-            T *cpu_data = new T[data_size];
-            for (int i = 0; i < data_size; i++)
-            {
-                cpu_data[i] = data_ptr[i];
-            }
-        }
-        else if (device == Device::GPU && this->device == Device::CPU)
-        {
-            throw std::runtime_error("Tried to move tensor from CPU to GPU");
-            // move the tensor to the GPU
-            T *gpu_data = new T[data_size];
-            for (int i = 0; i < data_size; i++)
-            {
-                gpu_data[i] = data_ptr[i];
-            }
-        }
-        else
-        {
-            throw std::invalid_argument("Tried to move tensor to the same device");
-        }
-    }
-
-    // get the device the tensor is on
-    Device get_device() const { return device; }
-
-    // print the values of the tensor as a string up to 4 dims like a numpy array would be displayed with indicating the shape
-    std::string to_string() const
-    {
-        std::stringstream ss;
-        if (shape.size() == 1)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << data_ptr[i] << ", ";
-            }
-            ss << "]";
-        }
-        else if (shape.size() == 2)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << "[";
-                for (int j = 0; j < shape[1]; j++)
-                {
-                    ss << data_ptr[i * shape[1] + j] << ", ";
-                }
-                ss << "], \n";
-            }
-            ss << "]";
-        }
-        else if (shape.size() == 3)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << "[";
-                for (int j = 0; j < shape[1]; j++)
-                {
-                    ss << "[";
-                    for (int k = 0; k < shape[2]; k++)
-                    {
-                        ss << data_ptr[i * shape[1] * shape[2] + j * shape[2] + k] << ", ";
-                    }
-                    ss << "], \n";
-                }
-                ss << "], \n";
-            }
-            ss << "]";
-        }
-        else if (shape.size() == 4)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << "[";
-                for (int j = 0; j < shape[1]; j++)
-                {
-                    ss << "[";
-                    for (int k = 0; k < shape[2]; k++)
-                    {
-                        ss << "[";
-                        for (int l = 0; l < shape[3]; l++)
-                        {
-                            ss << data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l] << ", ";
-                        }
-                        ss << "], \n";
-                    }
-                    ss << "], \n";
-                }
-                ss << "], \n";
-            }
-            ss << "]";
-        }
-        else
-        {
-            throw std::invalid_argument("Tried to print tensor with more than 4 dimensions");
-        }
-
-        return ss.str();
-    }
-
-    // print the shape of the tensor
-    std::string shape_to_string() const
-    {
-        if (shape.size() == 0) return std::string("( null )");
-
-        std::stringstream ss;
-        ss << "( ";
-        for (int i = 0; i < shape.size() - 1; i++)
-        {
-            ss << shape[i] << ", ";
-        }
-        ss << shape[shape.size() - 1] << " )";
-        return ss.str();
-    }
-
-    // Add method to compute the maximum along a specified axis
-    Tensor<T> max(int axis, bool keepdims) const
-    {
-        // Implementation for max
-        // This is a placeholder implementation
-        // You need to implement the logic to compute the maximum along the specified axis
-        return *this; // Return a new tensor with the maximum values
-    }
-
-    // Add method to compute the exponential of each element
+    // method to compute the exponential of each element
     Tensor<T> exp() const
     {
         Tensor<T> result(shape);
@@ -552,17 +404,18 @@ public:
         return result;
     }
 
-    // compute element-wise max(0, elem) for relu layer
-    Tensor<T> relu() const {
+    // method to compute the natural logarithm of each element
+    Tensor<T> log() const
+    {
         Tensor<T> result(shape);
-
-        for(int i = 0; i < data_size; i++) {
-            result.data_ptr[i] = std::max(0, this->data_ptr[i]);
+        for (int i = 0; i < data_size; i++)
+        {
+            result.data_ptr[i] = std::log(data_ptr[i]);
         }
         return result;
     }
 
-    // Add method to compute the sum along a specified axis
+    // method to compute the sum along a specified axis
     Tensor<T> sum(int axis) const
     {
         //check if axis is valid
@@ -624,64 +477,7 @@ public:
         return Tensor<T>(); // Return an empty tensor if the axis is not valid or the shape is not supported
     }
 
-    // Add method to compute the natural logarithm of each element
-    Tensor<T> log() const
-    {
-        Tensor<T> result(shape);
-        for (int i = 0; i < data_size; i++)
-        {
-            result.data_ptr[i] = std::log(data_ptr[i]);
-        }
-        return result;
-    }
-
-    Tensor<T> reduce_max(int axis, bool keepdim) const
-    {
-        if (shape.size() != 2)
-            throw std::invalid_argument("reduce_max: 2D only");
-        const size_t B = shape[0], C = shape[1];
-
-        if (axis == 0)
-        { // max over rows → [C] or [1,C]
-            Tensor<T> out(keepdim ? std::vector<size_t>{1, C} : std::vector<size_t>{C});
-            for (size_t j = 0; j < C; ++j)
-            {
-                T m = data_ptr[0 * C + j];
-                for (size_t i = 1; i < B; ++i)
-                {
-                    T v = data_ptr[i * C + j];
-                    if (v > m)
-                        m = v;
-                }
-                if (keepdim)
-                    out.get_data_ptr()[j] = m;
-                else
-                    out.get_data_ptr()[j] = m;
-            }
-            return out;
-        }
-        else if (axis == 1)
-        { // max over cols → [B] or [B,1]
-            Tensor<T> out(keepdim ? std::vector<size_t>{B, 1} : std::vector<size_t>{B});
-            for (size_t i = 0; i < B; ++i)
-            {
-                T m = data_ptr[i * C + 0];
-                for (size_t j = 1; j < C; ++j)
-                {
-                    T v = data_ptr[i * C + j];
-                    if (v > m)
-                        m = v;
-                }
-                out.get_data_ptr()[i] = m; // layout works for both shapes here
-            }
-            return out;
-        }
-        else
-        {
-            throw std::invalid_argument("reduce_max: axis must be 0 or 1");
-        }
-    }
-
+    // method to compute the argmax along a specified axis
     Tensor<int> argmax(int axis) const
     {
         if (shape.size() == 1) {
@@ -823,7 +619,187 @@ public:
         return out;
     }
 
+    //// DEVICE MANAGEMENT AND UTILS ////
+
+    // bring the tensor to a specific device
+    void to_device(Device device)
+    {
+        if (device == this->device)
+        {
+            // do nothing
+        }
+        else if (device == Device::CPU && this->device == Device::GPU)
+        {
+            throw std::runtime_error("Tried to move tensor from GPU to CPU");
+            // move the tensor to the CPU
+            T *cpu_data = new T[data_size];
+            for (int i = 0; i < data_size; i++)
+            {
+                cpu_data[i] = data_ptr[i];
+            }
+        }
+        else if (device == Device::GPU && this->device == Device::CPU)
+        {
+            throw std::runtime_error("Tried to move tensor from CPU to GPU");
+            // move the tensor to the GPU
+            T *gpu_data = new T[data_size];
+            for (int i = 0; i < data_size; i++)
+            {
+                gpu_data[i] = data_ptr[i];
+            }
+        }
+        else
+        {
+            throw std::invalid_argument("Tried to move tensor to the same device");
+        }
+    }
+
+    // get the device the tensor is on
+    Device get_device() const { return device; }
+
+    // print the values of the tensor as a string up to 4 dims like a numpy array would be displayed with indicating the shape
+    std::string to_string() const
+    {
+        std::stringstream ss;
+        if (shape.size() == 1)
+        {
+            ss << "[";
+            for (int i = 0; i < shape[0]; i++)
+            {
+                ss << data_ptr[i] << ", ";
+            }
+            ss << "]";
+        }
+        else if (shape.size() == 2)
+        {
+            ss << "[";
+            for (int i = 0; i < shape[0]; i++)
+            {
+                ss << "[";
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    ss << data_ptr[i * shape[1] + j] << ", ";
+                }
+                ss << "], \n";
+            }
+            ss << "]";
+        }
+        else if (shape.size() == 3)
+        {
+            ss << "[";
+            for (int i = 0; i < shape[0]; i++)
+            {
+                ss << "[";
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    ss << "[";
+                    for (int k = 0; k < shape[2]; k++)
+                    {
+                        ss << data_ptr[i * shape[1] * shape[2] + j * shape[2] + k] << ", ";
+                    }
+                    ss << "], \n";
+                }
+                ss << "], \n";
+            }
+            ss << "]";
+        }
+        else if (shape.size() == 4)
+        {
+            ss << "[";
+            for (int i = 0; i < shape[0]; i++)
+            {
+                ss << "[";
+                for (int j = 0; j < shape[1]; j++)
+                {
+                    ss << "[";
+                    for (int k = 0; k < shape[2]; k++)
+                    {
+                        ss << "[";
+                        for (int l = 0; l < shape[3]; l++)
+                        {
+                            ss << data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l] << ", ";
+                        }
+                        ss << "], \n";
+                    }
+                    ss << "], \n";
+                }
+                ss << "], \n";
+            }
+            ss << "]";
+        }
+        else
+        {
+            throw std::invalid_argument("Tried to print tensor with more than 4 dimensions");
+        }
+
+        return ss.str();
+    }
+
+    // print the shape of the tensor
+    std::string shape_to_string() const
+    {
+        if (shape.size() == 0)
+            return std::string("( null )");
+
+        std::stringstream ss;
+        ss << "( ";
+        for (int i = 0; i < shape.size() - 1; i++)
+        {
+            ss << shape[i] << ", ";
+        }
+        ss << shape[shape.size() - 1] << " )";
+        return ss.str();
+    }
+
+    /*
     ///// LEGAGCY METHODS /////
+
+        Tensor<T> reduce_max(int axis, bool keepdim) const
+    {
+        if (shape.size() != 2)
+            throw std::invalid_argument("reduce_max: 2D only");
+        const size_t B = shape[0], C = shape[1];
+
+        if (axis == 0)
+        { // max over rows → [C] or [1,C]
+            Tensor<T> out(keepdim ? std::vector<size_t>{1, C} : std::vector<size_t>{C});
+            for (size_t j = 0; j < C; ++j)
+            {
+                T m = data_ptr[0 * C + j];
+                for (size_t i = 1; i < B; ++i)
+                {
+                    T v = data_ptr[i * C + j];
+                    if (v > m)
+                        m = v;
+                }
+                if (keepdim)
+                    out.get_data_ptr()[j] = m;
+                else
+                    out.get_data_ptr()[j] = m;
+            }
+            return out;
+        }
+        else if (axis == 1)
+        { // max over cols → [B] or [B,1]
+            Tensor<T> out(keepdim ? std::vector<size_t>{B, 1} : std::vector<size_t>{B});
+            for (size_t i = 0; i < B; ++i)
+            {
+                T m = data_ptr[i * C + 0];
+                for (size_t j = 1; j < C; ++j)
+                {
+                    T v = data_ptr[i * C + j];
+                    if (v > m)
+                        m = v;
+                }
+                out.get_data_ptr()[i] = m; // layout works for both shapes here
+            }
+            return out;
+        }
+        else
+        {
+            throw std::invalid_argument("reduce_max: axis must be 0 or 1");
+        }
+    }
 
     Tensor<T> dot_1d(const Tensor<T> &other) const
     {
@@ -947,6 +923,7 @@ public:
                         static_cast<size_t>(k) * shape[3] +
                         static_cast<size_t>(l)];
     }
+    */
 };
 
 #endif
