@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
+#include <memory>
 
 #include "model.h"
 #include "dataloader.h"

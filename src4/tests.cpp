@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cmath>
 #include <cassert>
+#include <memory>
 
 #include "model.h"
 #include "dataloader.h"
