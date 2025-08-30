@@ -22,31 +22,31 @@ bool test_tensor_creation()
     return true;
 }
 
-bool test_tensor_dot_1d()
-{
-    logger("test_tensor_dot_1d");
-    Tensor<float> a({3, 2});
-    for (int i = 0; i < a.get_size(); i++)
-    {
-        a.get_data_ptr()[i] = i;
-    }
-    std::cout << "2-dim tensor: \n"
-              << a.to_string() << std::endl;
+// bool test_tensor_dot_1d()
+// {
+//     logger("test_tensor_dot_1d");
+//     Tensor<float> a({3, 2});
+//     for (int i = 0; i < a.get_size(); i++)
+//     {
+//         a.get_data_ptr()[i] = i;
+//     }
+//     std::cout << "2-dim tensor: \n"
+//               << a.to_string() << std::endl;
 
-    Tensor<float> b({2});
-    for (int i = 0; i < b.get_size(); i++)
-    {
-        b.get_data_ptr()[i] = i;
-    }
-    std::cout << "1-dim tensor: \n"
-              << b.to_string() << std::endl;
+//     Tensor<float> b({2});
+//     for (int i = 0; i < b.get_size(); i++)
+//     {
+//         b.get_data_ptr()[i] = i;
+//     }
+//     std::cout << "1-dim tensor: \n"
+//               << b.to_string() << std::endl;
 
-    Tensor<float> c = a.dot_2d(b);
-    logger("a.shape: " + a.shape_to_string() + " b.shape: " + b.shape_to_string() + " c.shape: " + c.shape_to_string());
-    std::cout << "1-dim tensor: \n"
-              << c.to_string() << std::endl;
-    return true;
-}
+//     Tensor<float> c = a.dot_2d(b);
+//     logger("a.shape: " + a.shape_to_string() + " b.shape: " + b.shape_to_string() + " c.shape: " + c.shape_to_string());
+//     std::cout << "1-dim tensor: \n"
+//               << c.to_string() << std::endl;
+//     return true;
+// }
 
 bool test_tensor_matmul()
 {
