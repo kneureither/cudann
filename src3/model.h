@@ -18,9 +18,8 @@ public:
         }
     };
 
-    std::vector<int> get_shape() {return this->shape;} const;
-    int get_size_data() {return this->data_size;} const;
-
+    std::vector<int> get_shape() const { return this->shape; }
+    int get_size_data() const { return this->data_size; }
 
     void zeros(std::vector<int> shape) {
         if (shape.size() < 1 || shape.size() > 2) {
@@ -47,6 +46,7 @@ public:
         if(shape.size() == 2) {
             for (int i = 0; i < shape[0]; i++) {
                 this->view_idx.push_back(data_ptr+i*shape[1]*sizeof(T));
+            }
         }
 
     };
@@ -54,7 +54,7 @@ public:
     void random(std::vector<int> shape) {
         this->zeros(shape);
         for (int i = 0; i < this->data_size; i++) {
-            this->data_ptr[i] = T(rand() % RAND_MAX());
+            this->data_ptr[i] = T(rand() % RAND_MAX);
         }
     };
 
@@ -119,7 +119,7 @@ public:
     Tensor<T> dot(const Tensor<T> &other) const;
     Tensor<T> slice(int start, int end) const;
 
-    auto operator[](int index) {
+    T& operator[](int index) {
         if (index < 0 || index >= shape[0]) {
             throw std::out_of_range("Index out of bounds");
         }

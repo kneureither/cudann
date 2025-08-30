@@ -88,12 +88,11 @@ void Dataset::_get_labels_from_file(const char *path, mnist_dataset_t *dataset)
         return;
     }
 
-    // Convert from big endian to little endian
-    if (std::endian::native == std::endian::little)
-    {
-        header.magic_number = __builtin_bswap32(header.magic_number);
-        header.number_of_labels = __builtin_bswap32(header.number_of_labels);
-    }
+// Convert from big endian to little endian
+#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+    header.magic_number = __builtin_bswap32(header.magic_number);
+    header.number_of_labels = __builtin_bswap32(header.number_of_labels);
+#endif
 
     if (MNIST_LABEL_MAGIC != header.magic_number)
     {
@@ -132,14 +131,13 @@ void Dataset::_get_images_from_file(const char *path, mnist_dataset_t *dataset)
         return;
     }
 
-    // Convert from big endian to little endian
-    if (std::endian::native == std::endian::little)
-    {
-        header.magic_number = __builtin_bswap32(header.magic_number);
-        header.number_of_images = __builtin_bswap32(header.number_of_images);
-        header.number_of_rows = __builtin_bswap32(header.number_of_rows);
-        header.number_of_columns = __builtin_bswap32(header.number_of_columns);
-    }
+// Convert from big endian to little endian
+#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+    header.magic_number = __builtin_bswap32(header.magic_number);
+    header.number_of_images = __builtin_bswap32(header.number_of_images);
+    header.number_of_rows = __builtin_bswap32(header.number_of_rows);
+    header.number_of_columns = __builtin_bswap32(header.number_of_columns);
+#endif
 
     if (MNIST_IMAGE_MAGIC != header.magic_number)
     {

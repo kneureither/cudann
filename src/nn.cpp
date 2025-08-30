@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cmath>
 
+#define PIXEL_SCALE(x) (((float)(x)) / 255.0f)
+
 NeuralNetwork::NeuralNetwork(int n_inputs, int n_outputs)
 {
     this->n_inputs = n_inputs;
@@ -18,6 +20,7 @@ NeuralNetwork::NeuralNetwork(int n_inputs, int n_outputs)
     b1 = new double[n_outputs];
     b1_grad = new double[n_outputs];
     output = new double[n_outputs];
+    logits = new uint8_t[n_outputs];
 }
 
 NeuralNetwork::~NeuralNetwork()
@@ -27,6 +30,7 @@ NeuralNetwork::~NeuralNetwork()
     delete[] w1_grad;
     delete[] b1_grad;
     delete[] output;
+    delete[] logits;
 }
 
 /*
@@ -34,6 +38,7 @@ NeuralNetwork::~NeuralNetwork()
 */
 void NeuralNetwork::randomize_weights()
 {
+    rand();
     for (int i = 0; i < n_inputs * n_outputs; i++)
     {
         this->w1[i] = static_cast<double>(rand()) / RAND_MAX;
@@ -42,11 +47,6 @@ void NeuralNetwork::randomize_weights()
     {
         this->b1[i] = static_cast<double>(rand()) / RAND_MAX;
     }
-}
-
-double inline NeuralNetwork::activation_function(double x)
-{
-    return 1.0 / (1.0 + std::exp(-x));
 }
 
 /*
@@ -83,7 +83,7 @@ void NeuralNetwork::neural_network_softmax(double *activations, int length)
 /*
     Perform single forward pass of one single sample
 */
-void NeuralNetwork::forward(double *input)
+void NeuralNetwork::forward(u_int8_t *input)
 {
     int i, j;
     double sum;
@@ -96,7 +96,7 @@ void NeuralNetwork::forward(double *input)
         // sum over all inputs to one single output: i counts inputs
         for (i = 0; i < n_inputs; i++)
         {
-            sum += input[i] * w1[j * n_inputs + i];
+            sum += PIXEL_SCALE(input[i]) * w1[j * n_inputs + i];
         }
 
         // add bias
@@ -109,20 +109,22 @@ void NeuralNetwork::forward(double *input)
 
 /*
     Computes loss for a single sample.
+    TODO maybe remove this function as we only need it for the backprop which is done for every sample anyways inside the function.
 */
-double NeuralNetwork::loss_function(double *target)
-{
-    double loss = 0.0;
-    for (int i = 0; i < n_outputs; i++)
-    {
-        loss += -target[i] * std::log(output[i]);
-    }
-    return loss;
-}
+// double NeuralNetwork::loss_function(double *target)
+// {
+//     double loss = 0.0;
+//     for (int i = 0; i < n_outputs; i++)
+//     {
+//         loss += -target[i] * std::log(output[i]);
+//     }
+//     return loss;
+// }
 
-void NeuralNetwork::backprop(double *input, double *target)
+void NeuralNetwork::backprop(uint8_t *input, uint8_t label)
 {
     int i, j;
+    uint8_t *target = get_logits_from_label(label);
 
     // For cross-entropy loss with softmax, the gradient simplifies to (output - target)
     // This is because the derivatives of softmax and cross-entropy cancel out nicely
@@ -137,7 +139,7 @@ void NeuralNetwork::backprop(double *input, double *target)
         // Update weight gradients for all inputs to this output
         for (i = 0; i < n_inputs; i++)
         {
-            w1_grad[j * n_inputs + i] += error * input[i];
+            w1_grad[j * n_inputs + i] += error * PIXEL_SCALE(input[i]);
         }
     }
 }
@@ -171,4 +173,32 @@ void NeuralNetwork::update_weights_sgd(double learning_rate)
     }
 
     this->zero_gradients();
+}
+
+int NeuralNetwork::get_class_from_activations()
+{
+    float max = -std::numeric_limits<float>::max();
+    int class_idx = -1;
+
+    for (int i = 0; i < n_outputs; i++)
+    {
+        if (this->output[i] > max)
+        {
+            max = this->output[i];
+            class_idx = i;
+        }
+    }
+
+    return class_idx;
+}
+
+uint8_t *NeuralNetwork::get_logits_from_label(uint8_t label)
+{
+    for (int i = 0; i < this->n_outputs; i++)
+    {
+        this->logits[i] = 0;
+    }
+    this->logits[label] = 1;
+
+    return this->logits;
 }
