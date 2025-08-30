@@ -24,6 +24,18 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # Debug flags for CUDA
 # Include directories for headers
 include_directories(srcu)
 
+add_executable(tentest
+    srcu/tensor.cu
+)
+
+set_target_properties(tentest PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RUNTIME_LIBRARY Shared
+    CUDA_ARCHITECTURES "60"
+    COMPILE_FLAGS "-g -DTENSOR_TEST_MAIN"
+    LINK_FLAGS "-g"
+)
+
 add_executable(cumain
     srcu/main.cpp
     srcu/dataloader.cpp
