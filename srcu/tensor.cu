@@ -1,38 +1,47 @@
 #include "tensor.cuh"
 #include <ctime>
 
-// CUDA kernels implementation
-__global__ void zeros_kernel(float* data, size_t size) {
+// Templated CUDA kernels
+template<typename T>
+__global__ void zeros_kernel(T* data, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
-        data[idx] = 0.0f;
+        data[idx] = T(0);
     }
 }
 
-__global__ void ones_kernel(float* data, size_t size) {
+template<typename T>
+__global__ void ones_kernel(T* data, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
-        data[idx] = 1.0f;
+        data[idx] = T(1);
     }
 }
 
-__global__ void random_uniform_kernel(float* data, size_t size, float min_val, float max_val, unsigned long long seed) {
+template<typename T>
+__global__ void random_uniform_kernel(T* data, size_t size, T min_val, T max_val, unsigned long long seed) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         curandState state;
         curand_init(seed, idx, 0, &state);
-        data[idx] = min_val + curand_uniform(&state) * (max_val - min_val);
+        if constexpr (std::is_same_v<T, float>) {
+            data[idx] = min_val + curand_uniform(&state) * (max_val - min_val);
+        } else if constexpr (std::is_same_v<T, int>) {
+            data[idx] = min_val + static_cast<int>(curand_uniform(&state) * (max_val - min_val + 1));
+        }
     }
 }
 
-__global__ void add_tensors_kernel(float* a, const float* b, size_t size) {
+template<typename T>
+__global__ void add_tensors_kernel(T* a, const T* b, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         a[idx] += b[idx];
     }
 }
 
-__global__ void add_matrix_vector_kernel(float* matrix, const float* vector, size_t rows, size_t cols) {
+template<typename T>
+__global__ void add_matrix_vector_kernel(T* matrix, const T* vector, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
     size_t col = blockIdx.y * blockDim.y + threadIdx.y;
     
@@ -42,47 +51,53 @@ __global__ void add_matrix_vector_kernel(float* matrix, const float* vector, siz
     }
 }
 
-__global__ void add_scalar_kernel(float* data, float scalar, size_t size) {
+template<typename T>
+__global__ void add_scalar_kernel(T* data, T scalar, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         data[idx] += scalar;
     }
 }
 
-__global__ void subtract_tensors_kernel(float* a, const float* b, size_t size) {
+template<typename T>
+__global__ void subtract_tensors_kernel(T* a, const T* b, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         a[idx] -= b[idx];
     }
 }
 
-__global__ void multiply_tensors_kernel(float* a, const float* b, size_t size) {
+template<typename T>
+__global__ void multiply_tensors_kernel(T* a, const T* b, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         a[idx] *= b[idx];
     }
 }
 
-__global__ void multiply_scalar_kernel(float* data, float scalar, size_t size) {
+template<typename T>
+__global__ void multiply_scalar_kernel(T* data, T scalar, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
         data[idx] *= scalar;
     }
 }
 
-__global__ void greater_than_kernel(const float* input, float* output, float threshold, size_t size) {
+template<typename T>
+__global__ void greater_than_kernel(const T* input, T* output, T threshold, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
-        output[idx] = (input[idx] > threshold) ? 1.0f : 0.0f;
+        output[idx] = (input[idx] > threshold) ? T(1) : T(0);
     }
 }
 
-__global__ void matmul_kernel(const float* a, const float* b, float* c, size_t m, size_t n, size_t k) {
+template<typename T>
+__global__ void matmul_kernel(const T* a, const T* b, T* c, size_t m, size_t n, size_t k) {
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (row < m && col < n) {
-        float sum = 0.0f;
+        T sum = T(0);
         for (size_t i = 0; i < k; i++) {
             sum += a[row * k + i] * b[i * n + col];
         }
@@ -90,7 +105,8 @@ __global__ void matmul_kernel(const float* a, const float* b, float* c, size_t m
     }
 }
 
-__global__ void transpose_kernel(const float* input, float* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void transpose_kernel(const T* input, T* output, size_t rows, size_t cols) {
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -99,25 +115,39 @@ __global__ void transpose_kernel(const float* input, float* output, size_t rows,
     }
 }
 
-__global__ void exp_kernel(const float* input, float* output, size_t size) {
+// Math functions - only for float types
+template<typename T>
+__global__ void exp_kernel(const T* input, T* output, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
-        output[idx] = expf(input[idx]);
+        if constexpr (std::is_same_v<T, float>) {
+            output[idx] = expf(input[idx]);
+        } else {
+            // For integer types, exp doesn't make sense, so we'll just copy
+            output[idx] = input[idx];
+        }
     }
 }
 
-__global__ void log_kernel(const float* input, float* output, size_t size) {
+template<typename T>
+__global__ void log_kernel(const T* input, T* output, size_t size) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size) {
-        output[idx] = logf(input[idx]);
+        if constexpr (std::is_same_v<T, float>) {
+            output[idx] = logf(input[idx]);
+        } else {
+            // For integer types, log doesn't make sense, so we'll just copy
+            output[idx] = input[idx];
+        }
     }
 }
 
-__global__ void sum_axis0_kernel(const float* input, float* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void sum_axis0_kernel(const T* input, T* output, size_t rows, size_t cols) {
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (col < cols) {
-        float sum = 0.0f;
+        T sum = T(0);
         for (size_t row = 0; row < rows; row++) {
             sum += input[row * cols + col];
         }
@@ -125,11 +155,12 @@ __global__ void sum_axis0_kernel(const float* input, float* output, size_t rows,
     }
 }
 
-__global__ void sum_axis1_kernel(const float* input, float* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void sum_axis1_kernel(const T* input, T* output, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (row < rows) {
-        float sum = 0.0f;
+        T sum = T(0);
         for (size_t col = 0; col < cols; col++) {
             sum += input[row * cols + col];
         }
@@ -137,15 +168,16 @@ __global__ void sum_axis1_kernel(const float* input, float* output, size_t rows,
     }
 }
 
-__global__ void argmax_axis0_kernel(const float* input, int* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void argmax_axis0_kernel(const T* input, int* output, size_t rows, size_t cols) {
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (col < cols) {
         size_t best_idx = 0;
-        float best_val = input[col];
+        T best_val = input[col];
         
         for (size_t row = 1; row < rows; row++) {
-            float val = input[row * cols + col];
+            T val = input[row * cols + col];
             if (val > best_val) {
                 best_val = val;
                 best_idx = row;
@@ -155,15 +187,16 @@ __global__ void argmax_axis0_kernel(const float* input, int* output, size_t rows
     }
 }
 
-__global__ void argmax_axis1_kernel(const float* input, int* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void argmax_axis1_kernel(const T* input, int* output, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (row < rows) {
         size_t best_idx = 0;
-        float best_val = input[row * cols];
+        T best_val = input[row * cols];
         
         for (size_t col = 1; col < cols; col++) {
-            float val = input[row * cols + col];
+            T val = input[row * cols + col];
             if (val > best_val) {
                 best_val = val;
                 best_idx = col;
@@ -173,57 +206,74 @@ __global__ void argmax_axis1_kernel(const float* input, int* output, size_t rows
     }
 }
 
-__global__ void softmax_axis1_kernel(const float* input, float* output, size_t rows, size_t cols) {
+// Softmax kernels - only meaningful for float
+template<typename T>
+__global__ void softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (row < rows) {
-        // Find row max
-        float max_val = input[row * cols];
-        for (size_t col = 1; col < cols; col++) {
-            float val = input[row * cols + col];
-            if (val > max_val) {
-                max_val = val;
+        if constexpr (std::is_same_v<T, float>) {
+            // Find row max
+            T max_val = input[row * cols];
+            for (size_t col = 1; col < cols; col++) {
+                T val = input[row * cols + col];
+                if (val > max_val) {
+                    max_val = val;
+                }
             }
-        }
-        
-        // Compute sum of exp(x - max)
-        float sum_exp = 0.0f;
-        for (size_t col = 0; col < cols; col++) {
-            float exp_val = expf(input[row * cols + col] - max_val);
-            output[row * cols + col] = exp_val;
-            sum_exp += exp_val;
-        }
-        
-        // Normalize
-        for (size_t col = 0; col < cols; col++) {
-            output[row * cols + col] /= sum_exp;
+            
+            // Compute sum of exp(x - max)
+            T sum_exp = T(0);
+            for (size_t col = 0; col < cols; col++) {
+                T exp_val = expf(input[row * cols + col] - max_val);
+                output[row * cols + col] = exp_val;
+                sum_exp += exp_val;
+            }
+            
+            // Normalize
+            for (size_t col = 0; col < cols; col++) {
+                output[row * cols + col] /= sum_exp;
+            }
+        } else {
+            // For non-float types, just copy input to output
+            for (size_t col = 0; col < cols; col++) {
+                output[row * cols + col] = input[row * cols + col];
+            }
         }
     }
 }
 
-__global__ void log_softmax_axis1_kernel(const float* input, float* output, size_t rows, size_t cols) {
+template<typename T>
+__global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (row < rows) {
-        // Find row max
-        float max_val = input[row * cols];
-        for (size_t col = 1; col < cols; col++) {
-            float val = input[row * cols + col];
-            if (val > max_val) {
-                max_val = val;
+        if constexpr (std::is_same_v<T, float>) {
+            // Find row max
+            T max_val = input[row * cols];
+            for (size_t col = 1; col < cols; col++) {
+                T val = input[row * cols + col];
+                if (val > max_val) {
+                    max_val = val;
+                }
             }
-        }
-        
-        // Compute log-sum-exp
-        float sum_exp = 0.0f;
-        for (size_t col = 0; col < cols; col++) {
-            sum_exp += expf(input[row * cols + col] - max_val);
-        }
-        float log_sum_exp = max_val + logf(sum_exp);
-        
-        // Compute log-softmax
-        for (size_t col = 0; col < cols; col++) {
-            output[row * cols + col] = input[row * cols + col] - log_sum_exp;
+            
+            // Compute log-sum-exp
+            T sum_exp = T(0);
+            for (size_t col = 0; col < cols; col++) {
+                sum_exp += expf(input[row * cols + col] - max_val);
+            }
+            T log_sum_exp = max_val + logf(sum_exp);
+            
+            // Compute log-softmax
+            for (size_t col = 0; col < cols; col++) {
+                output[row * cols + col] = input[row * cols + col] - log_sum_exp;
+            }
+        } else {
+            // For non-float types, just copy input to output
+            for (size_t col = 0; col < cols; col++) {
+                output[row * cols + col] = input[row * cols + col];
+            }
         }
     }
 }
@@ -353,7 +403,7 @@ void Tensor<T>::zeros()
     if (data_size > 0) {
         dim3 block_size(256);
         dim3 grid_size = get_grid_size(data_size, block_size);
-        zeros_kernel<<<grid_size, block_size>>>(data_ptr, data_size);
+        zeros_kernel<T><<<grid_size, block_size>>>(data_ptr, data_size);
         CUDA_CHECK(cudaGetLastError());
     }
 }
@@ -364,7 +414,7 @@ void Tensor<T>::ones()
     if (data_size > 0) {
         dim3 block_size(256);
         dim3 grid_size = get_grid_size(data_size, block_size);
-        ones_kernel<<<grid_size, block_size>>>(data_ptr, data_size);
+        ones_kernel<T><<<grid_size, block_size>>>(data_ptr, data_size);
         CUDA_CHECK(cudaGetLastError());
     }
 }
@@ -376,7 +426,7 @@ void Tensor<T>::random_uniform(T min_val, T max_val)
         dim3 block_size(256);
         dim3 grid_size = get_grid_size(data_size, block_size);
         unsigned long long seed = time(NULL);
-        random_uniform_kernel<<<grid_size, block_size>>>(data_ptr, data_size, min_val, max_val, seed);
+        random_uniform_kernel<T><<<grid_size, block_size>>>(data_ptr, data_size, min_val, max_val, seed);
         CUDA_CHECK(cudaGetLastError());
     }
 }
@@ -815,6 +865,49 @@ std::string Tensor<T>::shape_to_string() const
 
 // Explicit template instantiation for float
 template class Tensor<float>;
+template class Tensor<int>;
+
+// Explicit kernel instantiations
+template __global__ void zeros_kernel<float>(float*, size_t);
+template __global__ void zeros_kernel<int>(int*, size_t);
+template __global__ void ones_kernel<float>(float*, size_t);
+template __global__ void ones_kernel<int>(int*, size_t);
+template __global__ void add_tensors_kernel<float>(float*, const float*, size_t);
+template __global__ void add_tensors_kernel<int>(int*, const int*, size_t);
+template __global__ void random_uniform_kernel<float>(float*, size_t, float, float, unsigned long long);
+template __global__ void random_uniform_kernel<int>(int*, size_t, int, int, unsigned long long);
+template __global__ void add_matrix_vector_kernel<float>(float*, const float*, size_t, size_t);
+template __global__ void add_matrix_vector_kernel<int>(int*, const int*, size_t, size_t);
+template __global__ void add_scalar_kernel<float>(float*, float, size_t);
+template __global__ void add_scalar_kernel<int>(int*, int, size_t);
+template __global__ void subtract_tensors_kernel<float>(float*, const float*, size_t);
+template __global__ void subtract_tensors_kernel<int>(int*, const int*, size_t);
+template __global__ void multiply_tensors_kernel<float>(float*, const float*, size_t);
+template __global__ void multiply_tensors_kernel<int>(int*, const int*, size_t);
+template __global__ void multiply_scalar_kernel<float>(float*, float, size_t);
+template __global__ void multiply_scalar_kernel<int>(int*, int, size_t);
+template __global__ void greater_than_kernel<float>(const float*, float*, float, size_t);
+template __global__ void greater_than_kernel<int>(const int*, int*, int, size_t);
+template __global__ void matmul_kernel<float>(const float*, const float*, float*, size_t, size_t, size_t);
+template __global__ void matmul_kernel<int>(const int*, const int*, int*, size_t, size_t, size_t);
+template __global__ void transpose_kernel<float>(const float*, float*, size_t, size_t);
+template __global__ void transpose_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void exp_kernel<float>(const float*, float*, size_t);
+template __global__ void exp_kernel<int>(const int*, int*, size_t);
+template __global__ void log_kernel<float>(const float*, float*, size_t);
+template __global__ void log_kernel<int>(const int*, int*, size_t);
+template __global__ void sum_axis0_kernel<float>(const float*, float*, size_t, size_t);
+template __global__ void sum_axis0_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void sum_axis1_kernel<float>(const float*, float*, size_t, size_t);
+template __global__ void sum_axis1_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void argmax_axis0_kernel<float>(const float*, int*, size_t, size_t);
+template __global__ void argmax_axis0_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void argmax_axis1_kernel<float>(const float*, int*, size_t, size_t);
+template __global__ void argmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void softmax_axis1_kernel<float>(const float*, float*, size_t, size_t);
+template __global__ void softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void log_softmax_axis1_kernel<float>(const float*, float*, size_t, size_t);
+template __global__ void log_softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
 
 // Test main function (only compiled when this file is used as main)
 #ifdef TENSOR_TEST_MAIN
@@ -864,4 +957,5 @@ int main() {
     
     return 0;
 }
+
 #endif

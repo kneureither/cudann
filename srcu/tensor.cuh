@@ -30,27 +30,66 @@ enum class Device
     GPU
 };
 
-// Forward declarations of CUDA kernels
-__global__ void zeros_kernel(float* data, size_t size);
-__global__ void ones_kernel(float* data, size_t size);
-__global__ void random_uniform_kernel(float* data, size_t size, float min_val, float max_val, unsigned long long seed);
-__global__ void add_tensors_kernel(float* a, const float* b, size_t size);
-__global__ void add_matrix_vector_kernel(float* matrix, const float* vector, size_t rows, size_t cols);
-__global__ void add_scalar_kernel(float* data, float scalar, size_t size);
-__global__ void subtract_tensors_kernel(float* a, const float* b, size_t size);
-__global__ void multiply_tensors_kernel(float* a, const float* b, size_t size);
-__global__ void multiply_scalar_kernel(float* data, float scalar, size_t size);
-__global__ void greater_than_kernel(const float* input, float* output, float threshold, size_t size);
-__global__ void matmul_kernel(const float* a, const float* b, float* c, size_t m, size_t n, size_t k);
-__global__ void transpose_kernel(const float* input, float* output, size_t rows, size_t cols);
-__global__ void exp_kernel(const float* input, float* output, size_t size);
-__global__ void log_kernel(const float* input, float* output, size_t size);
-__global__ void sum_axis0_kernel(const float* input, float* output, size_t rows, size_t cols);
-__global__ void sum_axis1_kernel(const float* input, float* output, size_t rows, size_t cols);
-__global__ void argmax_axis0_kernel(const float* input, int* output, size_t rows, size_t cols);
-__global__ void argmax_axis1_kernel(const float* input, int* output, size_t rows, size_t cols);
-__global__ void softmax_axis1_kernel(const float* input, float* output, size_t rows, size_t cols);
-__global__ void log_softmax_axis1_kernel(const float* input, float* output, size_t rows, size_t cols);
+// Forward declarations of templated CUDA kernels
+template<typename T>
+__global__ void zeros_kernel(T* data, size_t size);
+
+template<typename T>
+__global__ void ones_kernel(T* data, size_t size);
+
+template<typename T>
+__global__ void random_uniform_kernel(T* data, size_t size, T min_val, T max_val, unsigned long long seed);
+
+template<typename T>
+__global__ void add_tensors_kernel(T* a, const T* b, size_t size);
+
+template<typename T>
+__global__ void add_matrix_vector_kernel(T* matrix, const T* vector, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void add_scalar_kernel(T* data, T scalar, size_t size);
+
+template<typename T>
+__global__ void subtract_tensors_kernel(T* a, const T* b, size_t size);
+
+template<typename T>
+__global__ void multiply_tensors_kernel(T* a, const T* b, size_t size);
+
+template<typename T>
+__global__ void multiply_scalar_kernel(T* data, T scalar, size_t size);
+
+template<typename T>
+__global__ void greater_than_kernel(const T* input, T* output, T threshold, size_t size);
+
+template<typename T>
+__global__ void matmul_kernel(const T* a, const T* b, T* c, size_t m, size_t n, size_t k);
+
+template<typename T>
+__global__ void transpose_kernel(const T* input, T* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void exp_kernel(const T* input, T* output, size_t size);
+
+template<typename T>
+__global__ void log_kernel(const T* input, T* output, size_t size);
+
+template<typename T>
+__global__ void sum_axis0_kernel(const T* input, T* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void sum_axis1_kernel(const T* input, T* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void argmax_axis0_kernel(const T* input, int* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void argmax_axis1_kernel(const T* input, int* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols);
 
 template <typename T>
 class Tensor
