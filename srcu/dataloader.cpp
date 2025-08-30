@@ -1,5 +1,6 @@
 #include "dataset.h"
 #include "dataloader.h"
+#include "tensor.cuh"
 
 #include <iostream>
 #include <bit>
@@ -155,24 +156,42 @@ size_t DataLoader::get_max_num_batches()
 Tensor<float> DataLoader::load_data_batch(int batch_idx)
 {
     Tensor<float> data({(size_t)this->batch_size, MNIST_IMAGE_SIZE});
+    
+    // Create CPU buffer to prepare data efficiently
+    std::vector<float> cpu_data(this->batch_size * MNIST_IMAGE_SIZE);
+    
     for (int i = 0; i < this->batch_size; i++)
     {
         mnist_image_t *image = this->get_sample(this->indices[batch_idx * this->batch_size + i]);
         for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
         {
-            data(i, j) = (float)image->pixels[j] / 255.0f;
+            cpu_data[i * MNIST_IMAGE_SIZE + j] = (float)image->pixels[j] / 255.0f;
         }
     }
+    
+    // Copy data directly to GPU memory
+    CUDA_CHECK(cudaMemcpy(data.get_data_ptr(), cpu_data.data(), 
+                         cpu_data.size() * sizeof(float), cudaMemcpyHostToDevice));
+    
     return data;
 }
 
 Tensor<int> DataLoader::load_labels_batch(int batch_idx)
 {
     Tensor<int> labels({(size_t)this->batch_size});
+    
+    // Create CPU buffer to prepare data efficiently
+    std::vector<int> cpu_labels(this->batch_size);
+    
     for (int i = 0; i < this->batch_size; i++)
     {
-        labels[i] = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
+        cpu_labels[i] = (int)this->get_label(this->indices[batch_idx * this->batch_size + i]);
     }
+    
+    // Copy data directly to GPU memory
+    CUDA_CHECK(cudaMemcpy(labels.get_data_ptr(), cpu_labels.data(), 
+                         cpu_labels.size() * sizeof(int), cudaMemcpyHostToDevice));
+    
     return labels;
 }
 
@@ -180,15 +199,22 @@ Tensor<float> DataLoader::load_data()
 {
     Tensor<float> data({(size_t)this->get_size(), MNIST_IMAGE_SIZE});
 
+    // Create CPU buffer to prepare data efficiently
+    std::vector<float> cpu_data(this->get_size() * MNIST_IMAGE_SIZE);
+
     // Load the data
     for (int i = 0; i < this->get_size(); i++)
     {
         mnist_image_t *image = this->get_sample(this->indices[i]);
         for (int j = 0; j < MNIST_IMAGE_SIZE; j++)
         {
-            data(i, j) = (float)image->pixels[j] / 255.0f;
+            cpu_data[i * MNIST_IMAGE_SIZE + j] = (float)image->pixels[j] / 255.0f;
         }
     }
+    
+    // Copy data directly to GPU memory
+    CUDA_CHECK(cudaMemcpy(data.get_data_ptr(), cpu_data.data(), 
+                         cpu_data.size() * sizeof(float), cudaMemcpyHostToDevice));
 
     return data;
 };
@@ -197,10 +223,17 @@ Tensor<int> DataLoader::load_labels()
 {
     Tensor<int> labels({(size_t) this->get_size()});
 
+    // Create CPU buffer to prepare data efficiently
+    std::vector<int> cpu_labels(this->get_size());
+
     for (int i = 0; i < this->get_size(); i++)
     {
-        labels[i] = (int)this->get_label(this->indices[i]);
+        cpu_labels[i] = (int)this->get_label(this->indices[i]);
     }
+    
+    // Copy data directly to GPU memory
+    CUDA_CHECK(cudaMemcpy(labels.get_data_ptr(), cpu_labels.data(), 
+                         cpu_labels.size() * sizeof(int), cudaMemcpyHostToDevice));
 
     return labels;
 };
