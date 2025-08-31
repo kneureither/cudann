@@ -518,6 +518,7 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
         dim3 grid_size = get_grid_size(data_size, block_size);
         add_tensors_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, data_size);
         CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
         return *this;
     } 
     // adding a vector to matrix (e.g. [batch, features] + [features])
@@ -528,6 +529,7 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
         dim3 grid_size = get_grid_size_2d(shape[0], shape[1], block_size);
         add_matrix_vector_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, shape[0], shape[1]);
         CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
         return *this;
     }
     // adding a scalar to the tensor
@@ -539,6 +541,7 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
         dim3 grid_size = get_grid_size(data_size, block_size);
         add_scalar_kernel<<<grid_size, block_size>>>(data_ptr, other.cpu_data_ptr[0], data_size);
         CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
         return *this;
     }
     else
@@ -558,6 +561,7 @@ Tensor<T> &Tensor<T>::operator-=(const Tensor<T> &other)
     dim3 grid_size = get_grid_size(data_size, block_size);
     subtract_tensors_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, data_size);
     CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     return *this;
 }
 
@@ -579,6 +583,7 @@ Tensor<T> &Tensor<T>::operator*=(const T &scalar)
     dim3 grid_size = get_grid_size(data_size, block_size);
     multiply_scalar_kernel<<<grid_size, block_size>>>(data_ptr, scalar, data_size);
     CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     return *this;
 }
 
@@ -613,6 +618,7 @@ Tensor<T> Tensor<T>::matmul(const Tensor<T> &other) const
     matmul_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, result.data_ptr, 
                                             shape[0], other.shape[1], shape[1]);
     CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     return result;
 }
