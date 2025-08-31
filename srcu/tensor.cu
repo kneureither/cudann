@@ -278,6 +278,11 @@ __global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows,
     }
 }
 
+template <typename T>
+__global__ void update_value_kernel(T val, T* d_ptr) {
+    cudaMemcpy(d_ptr, &val, sizeof(T), cudaMemcpyHostToDevice);
+}
+
 // Tensor class implementation
 
 template <typename T>
@@ -286,6 +291,7 @@ void Tensor<T>::allocate_gpu_memory()
     if (data_size > 0)
     {
         CUDA_CHECK(cudaMalloc(&data_ptr, data_size * sizeof(T)));
+
         owns_data = true;
         device = Device::GPU;
     }
@@ -316,6 +322,16 @@ void Tensor<T>::free_memory()
     owns_data = false;
     this->data_size = 0;
     this->shape = std::vector<size_t>({});
+}
+
+template <typename T>
+void Tensor<T>::update_value_at_idx(T val, size_t idx) {
+    if(idx < data_size) {
+        T* elem_ptr = data_ptr + idx * sizeof(T);
+        update_value_kernel<T><<<1, 1>>>(elem_ptr, val);
+    } else {
+        throw std::out_of_range("Index out of bounds: " + std::to_string(idx));
+    }
 }
 
 template <typename T>
@@ -914,6 +930,8 @@ template __global__ void softmax_axis1_kernel<float>(const float*, float*, size_
 template __global__ void softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
 template __global__ void log_softmax_axis1_kernel<float>(const float*, float*, size_t, size_t);
 template __global__ void log_softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void update_value_kernel<float>(float, float*);
+template __global__ void update_value_kernel<int>(int, int*);
 
 // Test main function (only compiled when this file is used as main)
 #ifdef TENSOR_TEST_MAIN
@@ -928,21 +946,29 @@ int main() {
         // Test initialization
         a.ones();
         std::cout << "Initialized tensor with ones" << std::endl;
+        std::cout << a.to_string() << std::endl << std::endl;
         
         // Test another tensor
         Tensor<float> b({3, 4});
         b.random_uniform(-1.0f, 1.0f);
-        std::cout << "Created random tensor" << std::endl;
+        std::cout << "Created random tensor b:" << std::endl;
+        std::cout << b.to_string() << std::endl << std::endl;
         
         // Test addition
         a += b;
-        std::cout << "Performed tensor addition" << std::endl;
+        std::cout << "Performed tensor addition, tensor a:" << std::endl;
+        std::cout << a.to_string() << std::endl << std::endl;
         
         // Test matrix multiplication
         Tensor<float> c({4, 2});
         c.ones();
+        std::cout <<"Tensor c:" << std::endl << c.to_string() << std::endl << std::endl;
+        c.update_value_at_idx(2.0f, 0);
+        std::cout <<"Tensor c:" << std::endl << c.to_string() << std::endl << std::endl;
         Tensor<float> result = a.matmul(c);
+        std::cout <<"Tensor cres:" << std::endl << result.to_string() << std::endl << std::endl;
         std::cout << "Performed matrix multiplication: " << a.shape_to_string() << " x " << c.shape_to_string() << " = " << result.shape_to_string() << std::endl;
+
         
         // Test transpose
         Tensor<float> transposed = result.transpose();

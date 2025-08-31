@@ -12,7 +12,6 @@
 
 
 
-
 class DataLoader {
     public:
         DataLoader(const std::string& data_path, const std::string& label_path, unsigned int batch_size) {

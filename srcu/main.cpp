@@ -2,7 +2,7 @@
 
 #define BATCH_SIZE 8
 #define MAX_EPOCHS 1
-#define LOG_LEVEL "INFO"
+#define LOG_LEVEL "DEBUG"
 
 #include <iostream>
 #include <vector>
@@ -101,6 +101,7 @@ int main() {
         logger("Epoch " + std::to_string(epoch), "INFO", __FILE__, __LINE__);
         for (int batch_idx = 1; batch_idx < train_loader.get_max_num_batches(); ++batch_idx)
         {
+            
             // Load a batch of data
             Tensor<precision> data_batch = train_loader.load_data_batch(batch_idx-1);
             Tensor<int> label_batch = train_loader.load_labels_batch(batch_idx-1);
@@ -132,8 +133,12 @@ int main() {
                 eval_result res = evaluation(model, test_loader, false);
                 logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
                 }
+
+            break;
         }
     }
+
+    return 0;
 
     logger("Final Evaluation...", "INFO");
     eval_result res = evaluation(model, test_loader, false);

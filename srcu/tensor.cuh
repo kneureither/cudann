@@ -91,6 +91,9 @@ __global__ void softmax_axis1_kernel(const T* input, T* output, size_t rows, siz
 template<typename T>
 __global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols);
 
+template<typename T>
+__global__ void update_value_kernel(T val, T* d_ptr);
+
 template <typename T>
 class Tensor
 {
@@ -107,6 +110,7 @@ private:
     void allocate_gpu_memory();
     void allocate_gpu_memory(std::vector<size_t> shape);
     void free_memory();
+    void update_value_at_idx(T val, size_t idx);
 
     // Helper function to calculate grid and block dimensions
     dim3 get_grid_size(size_t size, dim3 block_size = dim3(256)) const;
