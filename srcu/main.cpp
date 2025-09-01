@@ -4,6 +4,7 @@
 #define MAX_EPOCHS 1
 #define LOG_LEVEL "INFO"
 
+#include <chrono>
 #include <iostream>
 #include <vector>
 #include <cstdlib>
@@ -15,6 +16,7 @@
 #include "dataloader.h"
 
 #ifdef CUDA_AVAILABLE
+#include <cuda_runtime.h>
 #include "tensor.cuh"
 #else
 #include "tensor.h"
@@ -64,6 +66,59 @@ eval_result evaluation(Model<precision> &model, DataLoader &test_loader, bool fu
     return eval_result({num_total, num_correct, accuracy});
 };
 
+class Timer {
+private:
+    std::chrono::high_resolution_clock::time_point start_time;
+    
+public:
+    void start() {
+        // Memory barrier to prevent reordering
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        start_time = std::chrono::high_resolution_clock::now();
+    }
+    
+    double stop() {
+        auto end_time = std::chrono::high_resolution_clock::now();
+        // Memory barrier to prevent reordering
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            end_time - start_time).count();
+        return duration / 1000000.0; // Convert to seconds
+    }
+};
+
+#ifdef CUDA_AVAILABLE
+class CudaTimer {
+private:
+    cudaEvent_t start_event, stop_event;
+    
+public:
+    CudaTimer() {
+        cudaEventCreate(&start_event);
+        cudaEventCreate(&stop_event);
+    }
+    
+    ~CudaTimer() {
+        cudaEventDestroy(start_event);
+        cudaEventDestroy(stop_event);
+    }
+    
+    void start() {
+        cudaEventRecord(start_event, 0);
+    }
+    
+    double stop() {
+        cudaEventRecord(stop_event, 0);
+        cudaEventSynchronize(stop_event);
+        
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start_event, stop_event);
+        return milliseconds / 1000.0; // Convert to seconds
+    }
+};
+#endif
+
 int main() {
 
     int max_epochs = MAX_EPOCHS;
@@ -73,16 +128,19 @@ int main() {
     size_t eval_samples = 1000;
 
     // setup timing
-    std::clock_t start_time = std::clock();
-    double dataloader_time=0.0;
-    double allocation_time=0.0;
-    double duration = 0.0;
+    Timer overall_timer;
+    overall_timer.start();
+    Timer timer;
     double data_loading_time = 0.0;
     double forward_time = 0.0;
     double backward_time = 0.0;
     double step_time = 0.0;
     double eval_time = 0.0;
     double epoch_time = 0.0;
+
+#ifdef CUDA_AVAILABLE
+    CudaTimer cuda_timer;
+#endif
 
 
     // load data
@@ -137,7 +195,7 @@ int main() {
         for (int batch_idx = 1; batch_idx < train_loader.get_max_num_batches(); ++batch_idx)
         {
             // Load a batch of data
-            std::clock_t batch_start_time = std::clock();
+            timer.start();
             data_batch.view(train_data, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
@@ -145,48 +203,64 @@ int main() {
             label_batch.view(train_labels, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
-            data_loading_time += (std::clock() - batch_start_time) / (double) CLOCKS_PER_SEC;
+            data_loading_time += timer.stop();
 
             // Forward pass
-            std::clock_t forward_start_time = std::clock();
+#ifdef CUDA_AVAILABLE
+            cuda_timer.start();
+#else
+            timer.start();
+#endif
             logits = model.forward(data_batch);
             logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
 
             precision loss = loss_fn.forward(logits, label_batch);
             logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
-            forward_time += (std::clock() - forward_start_time) / (double) CLOCKS_PER_SEC;
+#ifdef CUDA_AVAILABLE
+            forward_time += cuda_timer.stop();
+#else
+            forward_time += timer.stop();
+#endif
 
             // Backward pass
-            std::clock_t backward_start_time = std::clock();
+#ifdef CUDA_AVAILABLE
+            cuda_timer.start();
+#else
+            timer.start();
+#endif
             d_logits = loss_fn.backward(); // ∂ℓ/∂logits
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
             logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
-            backward_time += (std::clock() - backward_start_time) / (double) CLOCKS_PER_SEC;
+#ifdef CUDA_AVAILABLE
+            backward_time += cuda_timer.stop();
+#else
+            backward_time += timer.stop();
+#endif
 
             // Update model parameters
-            std::clock_t step_start_time = std::clock();
+            timer.start();
             model.step(learning_rate);
-            step_time += (std::clock() - step_start_time) / (double) CLOCKS_PER_SEC;
+            step_time += timer.stop();
 
             if (batch_idx % log_every_steps == 0) {
                 logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "INFO");
             }
 
             // eval
-            std::clock_t eval_start_time = std::clock();
             if (batch_idx % eval_every_steps == 0) {
                 logger("Evaluating model on test set...", "INFO");
+                timer.start();
                 eval_result res = evaluation(model, test_loader, false);
+                eval_time += timer.stop();
                 logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
-                }
-            eval_time += (std::clock() - eval_start_time) / (double) CLOCKS_PER_SEC;
+            }
 
             //if(batch_idx == 1) break;
         }
     }
 
-    duration = (std::clock() - start_time) / (double) CLOCKS_PER_SEC;
+    double duration = overall_timer.stop();
 
     logger("Final Evaluation...", "INFO");
     eval_result res = evaluation(model, test_loader, false);
