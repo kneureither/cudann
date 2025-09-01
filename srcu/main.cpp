@@ -1,6 +1,6 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 8
+#define BATCH_SIZE 16
 #define MAX_EPOCHS 1
 #define LOG_LEVEL "INFO"
 
@@ -69,7 +69,7 @@ int main() {
     int max_epochs = MAX_EPOCHS;
     float learning_rate = 0.001f;
     int eval_every_steps = 1000;
-    int log_evey_steps = 100;
+    int log_every_steps = 100;
     size_t eval_samples = 1000;
 
 
@@ -85,7 +85,9 @@ int main() {
         eval_samples);
 
     Tensor<precision> train_data = train_loader.load_data();
+    Tensor<int> train_labels = train_loader.load_labels();
     Tensor<precision> test_data = test_loader.load_data();
+    Tensor<int> test_labels = test_loader.load_labels();
     logger(train_data.shape_to_string(), "INFO", __FILE__, __LINE__);
     logger(test_data.shape_to_string(), "INFO", __FILE__, __LINE__);
 
@@ -110,54 +112,103 @@ int main() {
     #endif
 
     // setup timing
+    std::clock_t start_time = std::clock();
+    double duration = 0.0;
+    double data_loading_time = 0.0;
+    double forward_time = 0.0;
+    double backward_time = 0.0;
+    double step_time = 0.0;
+    double eval_time = 0.0;
+    double epoch_time = 0.0;
 
 
     for (int epoch = 1; epoch <= max_epochs; ++epoch)
     {
         logger("Epoch " + std::to_string(epoch), "INFO", __FILE__, __LINE__);
+
         for (int batch_idx = 1; batch_idx < train_loader.get_max_num_batches(); ++batch_idx)
         {
-            
             // Load a batch of data
-            Tensor<precision> data_batch = train_loader.load_data_batch(batch_idx-1);
+            std::clock_t batch_start_time = std::clock();
+            Tensor<precision> data_batch = train_data.slice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
 
-            Tensor<int> label_batch = train_loader.load_labels_batch(batch_idx-1);
+            Tensor<int> label_batch = train_labels.slice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+            data_loading_time += (std::clock() - batch_start_time) / (double) CLOCKS_PER_SEC;
 
             // Forward pass
+            std::clock_t forward_start_time = std::clock();
             Tensor<precision> logits = model.forward(data_batch);
             logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
+
             precision loss = loss_fn.forward(logits, label_batch);
             logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
+            forward_time += (std::clock() - forward_start_time) / (double) CLOCKS_PER_SEC;
 
             // Backward pass
+            std::clock_t backward_start_time = std::clock();
             Tensor<precision> d_logits = loss_fn.backward(); // ∂ℓ/∂logits
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
-            logger("d_logtis values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
+            logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
+            backward_time += (std::clock() - backward_start_time) / (double) CLOCKS_PER_SEC;
 
             // Update model parameters
+            std::clock_t step_start_time = std::clock();
             model.step(learning_rate);
+            step_time += (std::clock() - step_start_time) / (double) CLOCKS_PER_SEC;
 
-            if (batch_idx % log_evey_steps == 0) {
+            if (batch_idx % log_every_steps == 0) {
                 logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "INFO");
             }
 
             // eval
+            std::clock_t eval_start_time = std::clock();
             if (batch_idx % eval_every_steps == 0) {
                 logger("Evaluating model on test set...", "INFO");
                 eval_result res = evaluation(model, test_loader, false);
                 logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
                 }
+            eval_time += (std::clock() - eval_start_time) / (double) CLOCKS_PER_SEC;
+
+            //if(batch_idx == 1) break;
         }
     }
+
+    duration = (std::clock() - start_time) / (double) CLOCKS_PER_SEC;
 
     logger("Final Evaluation...", "INFO");
     eval_result res = evaluation(model, test_loader, false);
     logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
+
+
+    logger("==================================", "INFO");
+    logger("Batch size: " + std::to_string(BATCH_SIZE), "INFO");
+    logger("Max epochs: " + std::to_string(max_epochs), "INFO");
+    logger("Learning rate: " + std::to_string(learning_rate), "INFO");
+    # if CUDA_AVAILABLE
+    logger("Using CUDA device: " + std::string(p.name), "INFO");
+    logger("Compute capability: " + std::to_string(p.major) + "." + std::to_string(p.minor), "INFO");
+    logger("Total global memory: " + std::to_string(p.totalGlobalMem / (1024 * 1024)) + " MB", "INFO");
+    logger("Shared memory per block: " + std::to_string(p.sharedMemPerBlock / 1024) + " KB", "INFO");
+    logger("Registers per block: " + std::to_string(p.regsPerBlock), "INFO");
+    logger("Warp size: " + std::to_string(p.warpSize), "INFO");
+    logger("Max threads per block: " + std::to_string(p.maxThreadsPerBlock), "INFO");
+    logger("Max threads per multiprocessor: " + std::to_string(p.maxThreadsPerMultiProcessor), "INFO");
+    logger("Number of multiprocessors: " + std::to_string(p.multiProcessorCount), "INFO");
+    # else
+    logger("Using CPU", "INFO");
+    # endif
+
+    logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
+    logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
+    logger("Forward pass time: " + std::to_string(forward_time) + " seconds (" + std::to_string(forward_time / duration * 100) + "%)", "INFO");
+    logger("Backward pass time: " + std::to_string(backward_time) + " seconds (" + std::to_string(backward_time / duration * 100) + "%)", "INFO");
+    logger("Step time: " + std::to_string(step_time) + " seconds (" + std::to_string(step_time / duration * 100) + "%)", "INFO");
+    logger("Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
 
     return 0;
 }
