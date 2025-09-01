@@ -198,11 +198,11 @@ int main() {
             // Load a batch of data
             timer.start();
             data_batch.view(train_data, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
-            logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
+            //logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
 
             label_batch.view(train_labels, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
-            logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
+            //logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
             data_loading_time += timer.stop();
 
@@ -213,7 +213,7 @@ int main() {
             timer.start();
 #endif
             logits = model.forward(data_batch);
-            logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
+            //logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
 
 #ifdef CUDA_AVAILABLE
             forward_time += cuda_timer.stop();
@@ -240,7 +240,7 @@ int main() {
 #endif
             d_logits = loss_fn.backward(); // ∂ℓ/∂logits
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
-            logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
+           //logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
 #ifdef CUDA_AVAILABLE
             backward_time += cuda_timer.stop();
@@ -298,6 +298,7 @@ int main() {
     logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
     logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
     logger("Forward pass time: " + std::to_string(forward_time) + " seconds (" + std::to_string(forward_time / duration * 100) + "%)", "INFO");
+    logger("Loss computation time: " + std::to_string(loss_time) + " seconds (" + std::to_string(loss_time / duration * 100) + "%)", "INFO");
     logger("Backward pass time: " + std::to_string(backward_time) + " seconds (" + std::to_string(backward_time / duration * 100) + "%)", "INFO");
     logger("Step time: " + std::to_string(step_time) + " seconds (" + std::to_string(step_time / duration * 100) + "%)", "INFO");
     logger("Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
