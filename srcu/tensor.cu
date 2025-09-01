@@ -40,6 +40,7 @@ __global__ void add_tensors_kernel(T* a, const T* b, size_t size) {
     }
 }
 
+// todo needs improvement. start one kernel per vector elem? also check the block dims
 template<typename T>
 __global__ void add_matrix_vector_kernel(T* matrix, const T* vector, size_t rows, size_t cols) {
     size_t row = blockIdx.x * blockDim.x + threadIdx.x;
@@ -91,6 +92,7 @@ __global__ void greater_than_kernel(const T* input, T* output, T threshold, size
     }
 }
 
+// needs some love
 template<typename T>
 __global__ void matmul_kernel(const T* a, const T* b, T* c, size_t m, size_t n, size_t k) {
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -280,7 +282,8 @@ __global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows,
 
 template <typename T>
 __global__ void update_value_kernel(T val, T* d_ptr) {
-    cudaMemcpy(d_ptr, &val, sizeof(T), cudaMemcpyHostToDevice);
+    //cudaMemcpy(d_ptr, &val, sizeof(T), cudaMemcpyHostToDevice);
+    *d_ptr = val;
 }
 
 // Tensor class implementation
@@ -327,8 +330,8 @@ void Tensor<T>::free_memory()
 template <typename T>
 void Tensor<T>::update_value_at_idx(T val, size_t idx) {
     if(idx < data_size) {
-        T* elem_ptr = data_ptr + idx * sizeof(T);
-        update_value_kernel<T><<<1, 1>>>(elem_ptr, val);
+        T* elem_ptr = data_ptr + idx;
+        update_value_kernel<T><<<1, 1>>>(val, elem_ptr);
     } else {
         throw std::out_of_range("Index out of bounds: " + std::to_string(idx));
     }
@@ -963,7 +966,7 @@ int main() {
         Tensor<float> c({4, 2});
         c.ones();
         std::cout <<"Tensor c:" << std::endl << c.to_string() << std::endl << std::endl;
-        c.update_value_at_idx(2.0f, 0);
+        c.update_value_at_idx(2.0f, 2);
         std::cout <<"Tensor c:" << std::endl << c.to_string() << std::endl << std::endl;
         Tensor<float> result = a.matmul(c);
         std::cout <<"Tensor cres:" << std::endl << result.to_string() << std::endl << std::endl;

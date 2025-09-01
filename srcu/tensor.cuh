@@ -110,7 +110,6 @@ private:
     void allocate_gpu_memory();
     void allocate_gpu_memory(std::vector<size_t> shape);
     void free_memory();
-    void update_value_at_idx(T val, size_t idx);
 
     // Helper function to calculate grid and block dimensions
     dim3 get_grid_size(size_t size, dim3 block_size = dim3(256)) const;
@@ -136,6 +135,7 @@ public:
     void zeros();
     void ones();
     void random_uniform(T min_val, T max_val);
+    void update_value_at_idx(T val, size_t idx);
 
     // Getters
     std::vector<size_t> get_shape() const;
