@@ -124,7 +124,7 @@ public:
             logger("assigning new tensor, old shape " + this->shape_to_string() + " other shape: " + other.shape_to_string() +
                        " this owns data " + std::to_string(this->owns_data),
                    "DEBUG", __FILE__, __LINE__);
-            // TODO perfomance improvement: check if the shape is the same, and dont reallocate
+
             if (this->owns_data)
             {
                 logger("freeing memory", "DEBUG", __FILE__, __LINE__);
@@ -251,7 +251,7 @@ public:
         return data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
     }
 
-    Tensor<T> deepslice(size_t start_idx, size_t batch_size) const {
+    Tensor<T> slice(size_t start_idx, size_t batch_size) const {
         if (shape.size() == 2) {
             size_t N = shape[0];
             size_t C = shape[1];
@@ -298,6 +298,79 @@ public:
 
         } else {
             throw std::invalid_argument("deepslice: tensor must be 1D [N] or 2D [N, C]");
+        }
+    }
+
+    void view(const Tensor<T> &other, size_t start_idx, size_t batch_size) {
+        //logger("Slicing used, start_idx" + std::to_string(start_idx) + ", batch " + std::to_string(batch_size), "INFO", __FILE__, __LINE__);
+        if (other.shape.size() == 2) {
+        
+            size_t N = other.shape[0];
+            size_t C = other.shape[1];
+            
+            // Validate indices
+            if (start_idx >= N) {
+                throw std::out_of_range("slice: start_idx (" + std::to_string(start_idx) + 
+                                    ") >= tensor size (" + std::to_string(N) + ")");
+            }
+            
+            if (start_idx + batch_size > N) {
+                throw std::out_of_range("slice: start_idx + batch_size (" + 
+                                    std::to_string(start_idx + batch_size) + 
+                                    ") > tensor size (" + std::to_string(N) + ")");
+            }
+
+            // if this tensory owns data, free it first.
+            if (owns_data) {
+                free_memory();
+            }
+            
+            // Update the pointer to point to the parent
+            T* src_ptr = other.data_ptr + (start_idx * C);
+            size_t copy_size = batch_size * C * sizeof(T);
+
+            shape = std::vector<size_t>({batch_size, C});
+            this->data_size = copy_size;
+            this->device = other.device;
+            this->data_ptr = src_ptr;
+            this->owns_data = false;
+            //result.parent = this;
+            //children.push_back(&result);
+
+        } else if (other.shape.size() == 1) {
+            
+            size_t N = other.shape[0];
+            
+            // Validate indices
+            if (start_idx >= N) {
+                throw std::out_of_range("slice: start_idx (" + std::to_string(start_idx) + 
+                                    ") >= tensor size (" + std::to_string(N) + ")");
+            }
+            
+            if (start_idx + batch_size > N) {
+                throw std::out_of_range("slice: start_idx + batch_size (" + 
+                                    std::to_string(start_idx + batch_size) + 
+                                    ") > tensor size (" + std::to_string(N) + ")");
+            }
+            // if this tensory owns data, free it first.
+            if (owns_data) {
+                free_memory();
+            }
+
+            // Update the pointer to point to the parent
+            T* src_ptr = other.data_ptr + (start_idx);
+            size_t copy_size = batch_size * sizeof(T);
+
+            this->shape = std::vector<size_t>({batch_size});
+            this->data_size = copy_size;
+            this->device = other.device;
+            this->data_ptr = src_ptr;
+            this->owns_data = false;
+            //result.parent = this;
+            //children.push_back(&result);
+
+        } else {
+            throw std::invalid_argument("slice: tensor must be 1D [N] or 2D [N, C], got shape " + shape_to_string());
         }
     }
 

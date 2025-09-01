@@ -105,6 +105,8 @@ private:
     size_t data_size;          // Total number of elements in the tensor
     bool owns_data;            // Flag to track ownership for proper cleanup
     Device device;             // Device the tensor is on
+    Tensor *parent = nullptr; // keeps track for slicing
+    std::vector<Tensor*> children;
 
     // Memory management methods
     void allocate_gpu_memory();
@@ -153,6 +155,7 @@ public:
     const T &operator()(int i, int j) const;
     Tensor<T> deepslice(size_t start_idx, size_t batch_size) const;
     Tensor<T> slice(size_t start_idx, size_t batch_size) const;
+    void view(const Tensor<T> &other, size_t start_idx, size_t batch_size);
 
     // Arithmetic operators
     Tensor<T> &operator+=(const Tensor<T> &other);

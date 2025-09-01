@@ -72,6 +72,18 @@ int main() {
     int log_every_steps = 100;
     size_t eval_samples = 1000;
 
+    // setup timing
+    std::clock_t start_time = std::clock();
+    double dataloader_time=0.0;
+    double allocation_time=0.0;
+    double duration = 0.0;
+    double data_loading_time = 0.0;
+    double forward_time = 0.0;
+    double backward_time = 0.0;
+    double step_time = 0.0;
+    double eval_time = 0.0;
+    double epoch_time = 0.0;
+
 
     // load data
     DataLoader train_loader = DataLoader(
@@ -90,6 +102,12 @@ int main() {
     Tensor<int> test_labels = test_loader.load_labels();
     logger(train_data.shape_to_string(), "INFO", __FILE__, __LINE__);
     logger(test_data.shape_to_string(), "INFO", __FILE__, __LINE__);
+    
+    // allocate batch memory
+    Tensor<precision> data_batch({BATCH_SIZE, MNIST_IMAGE_SIZE});
+    Tensor<int> label_batch({BATCH_SIZE});
+    Tensor<precision> logits({BATCH_SIZE, MNIST_LABELS});
+    Tensor<precision> d_logits({BATCH_SIZE, MNIST_LABELS});
 
     // setup model
     Model<precision> model;
@@ -111,16 +129,6 @@ int main() {
     printf("multiProcessorCount=%d\n", p.multiProcessorCount);
     #endif
 
-    // setup timing
-    std::clock_t start_time = std::clock();
-    double duration = 0.0;
-    double data_loading_time = 0.0;
-    double forward_time = 0.0;
-    double backward_time = 0.0;
-    double step_time = 0.0;
-    double eval_time = 0.0;
-    double epoch_time = 0.0;
-
 
     for (int epoch = 1; epoch <= max_epochs; ++epoch)
     {
@@ -130,18 +138,18 @@ int main() {
         {
             // Load a batch of data
             std::clock_t batch_start_time = std::clock();
-            Tensor<precision> data_batch = train_data.deepslice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
+            data_batch.view(train_data, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
 
-            Tensor<int> label_batch = train_labels.deepslice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
+            label_batch.view(train_labels, BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
             data_loading_time += (std::clock() - batch_start_time) / (double) CLOCKS_PER_SEC;
 
             // Forward pass
             std::clock_t forward_start_time = std::clock();
-            Tensor<precision> logits = model.forward(data_batch);
+            logits = model.forward(data_batch);
             logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
 
             precision loss = loss_fn.forward(logits, label_batch);
@@ -150,7 +158,7 @@ int main() {
 
             // Backward pass
             std::clock_t backward_start_time = std::clock();
-            Tensor<precision> d_logits = loss_fn.backward(); // ∂ℓ/∂logits
+            d_logits = loss_fn.backward(); // ∂ℓ/∂logits
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
             logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
