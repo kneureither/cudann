@@ -709,10 +709,9 @@ void Tensor<T>::view(const Tensor<T> &other, size_t start_idx, size_t batch_size
         
         // Update the pointer to point to the parent
         T* src_ptr = other.data_ptr + (start_idx * C);
-        size_t copy_size = batch_size * C * sizeof(T);
 
         shape = std::vector<size_t>({batch_size, C});
-        this->data_size = copy_size;
+        this->data_size = batch_size * C;
         this->device = other.device;
         this->data_ptr = src_ptr;
         this->owns_data = false;
@@ -741,10 +740,9 @@ void Tensor<T>::view(const Tensor<T> &other, size_t start_idx, size_t batch_size
 
         // Update the pointer to point to the parent
         T* src_ptr = other.data_ptr + (start_idx);
-        size_t copy_size = batch_size * sizeof(T);
 
         this->shape = std::vector<size_t>({batch_size});
-        this->data_size = copy_size;
+        this->data_size = batch_size;
         this->device = other.device;
         this->data_ptr = src_ptr;
         this->owns_data = false;

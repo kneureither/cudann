@@ -1,6 +1,6 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 16
+#define BATCH_SIZE 32
 #define MAX_EPOCHS 1
 #define LOG_LEVEL "INFO"
 
