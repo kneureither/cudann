@@ -11,6 +11,8 @@
 #include <ctime>
 #include <cmath>
 #include <memory>
+#include <fstream>
+#include <iomanip>
 
 #include "model.h"
 #include "dataloader.h"
@@ -137,6 +139,7 @@ int main() {
     double backward_time = 0.0;
     double step_time = 0.0;
     double eval_time = 0.0;
+    double final_eval_time = 0.0;
     double epoch_time = 0.0;
 
 #ifdef CUDA_AVAILABLE
@@ -272,10 +275,11 @@ int main() {
 
     double duration = overall_timer.stop();
 
+    timer.start();
     logger("Final Evaluation...", "INFO");
-    eval_result res = evaluation(model, test_loader, false);
+    eval_result res = evaluation(model, test_loader, true);
     logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
-
+    final_eval_time += timer.stop();
 
     logger("==================================", "INFO");
     logger("Batch size: " + std::to_string(BATCH_SIZE), "INFO");
@@ -295,6 +299,8 @@ int main() {
     logger("Using CPU", "INFO");
 #endif
 
+
+
     logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
     logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
     logger("Forward pass time: " + std::to_string(forward_time) + " seconds (" + std::to_string(forward_time / duration * 100) + "%)", "INFO");
@@ -302,6 +308,53 @@ int main() {
     logger("Backward pass time: " + std::to_string(backward_time) + " seconds (" + std::to_string(backward_time / duration * 100) + "%)", "INFO");
     logger("Step time: " + std::to_string(step_time) + " seconds (" + std::to_string(step_time / duration * 100) + "%)", "INFO");
     logger("Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
+    logger("Final Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
+
+    // Write results to CSV file
+    std::ofstream csv_file("eval.csv", std::ios::app);
+    if (csv_file.is_open()) {
+        // Get current date and time
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        auto tm = *std::localtime(&time_t);
+        
+        csv_file << std::put_time(&tm, "%Y-%m-%d") << ", " 
+                 << std::put_time(&tm, "%H:%M:%S") << ", "
+#ifdef CUDA_AVAILABLE
+                 << "CUDA" << ", "
+#else
+                 << "CPU" << ", "
+#endif
+                 << BATCH_SIZE << ", "
+                 << max_epochs << ", "
+                 << learning_rate << ", "
+                 << res.accuracy << ", "
+                 << eval_samples << ", "
+                 << duration << ", "
+                 << data_loading_time << ", "
+                 << forward_time << ", "
+                 << loss_time << ", "
+                 << backward_time << ", "
+                 << step_time << ", "
+                 << eval_time << ", "
+#ifdef CUDA_AVAILABLE
+                 << p.name << ", "
+                 << p.major << "." << p.minor << ", "
+                 << p.totalGlobalMem / (1024 * 1024) << ", "
+                 << p.sharedMemPerBlock / 1024 << ", "
+                 << p.regsPerBlock << ", "
+                 << p.warpSize << ", "
+                 << p.maxThreadsPerBlock << ", "
+                 << p.maxThreadsPerMultiProcessor << ", "
+                 << p.multiProcessorCount << std::endl;
+#else
+                 << "N/A, N/A, N/A, N/A, N/A, N/A, N/A, N/A, N/A" << std::endl;
+#endif
+        csv_file.close();
+        logger("Results written to eval.csv", "INFO");
+    } else {
+        logger("Failed to open eval.csv for writing", "ERROR");
+    }
 
     return 0;
 }

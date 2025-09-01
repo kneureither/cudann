@@ -1,0 +1,1 @@
+date, time, mode, batch_size, max_epochs, lr, accuracy, eval_size, total_time, data_load_time, forward_time, loss_time, backward_time, step_time, eval_time, cuda_device, compute_cap, total_glob_mem, block_shared_mem, block_registers, warp_size, block_max_threads, multiproc_max_threads, multiproc_count
