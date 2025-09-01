@@ -251,17 +251,17 @@ public:
         return data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
     }
 
-    Tensor<T> slice(size_t start_idx, size_t batch_size) const {
+    Tensor<T> deepslice(size_t start_idx, size_t batch_size) const {
         if (shape.size() == 2) {
             size_t N = shape[0];
             size_t C = shape[1];
             
             if (start_idx >= N) {
-                throw std::out_of_range("slice: start_idx out of range");
+                throw std::out_of_range("deepslice: start_idx out of range");
             }
             
             if (start_idx + batch_size > N) {
-                throw std::out_of_range("slice: batch exceeds tensor bounds");
+                throw std::out_of_range("deepslice: batch exceeds tensor bounds");
             }
             
             // Create result tensor
@@ -280,11 +280,11 @@ public:
             size_t N = shape[0];
 
             if (start_idx >= N) {
-                throw std::out_of_range("slice: start_idx out of range");
+                throw std::out_of_range("deepslice: start_idx out of range");
             }
             
             if (start_idx + batch_size > N) {
-                throw std::out_of_range("slice: batch exceeds tensor bounds");
+                throw std::out_of_range("deepslice: batch exceeds tensor bounds");
             }
             
             // Create result tensor
@@ -297,7 +297,7 @@ public:
             return result;
 
         } else {
-            throw std::invalid_argument("slice: tensor must be 1D [N] or 2D [N, C]");
+            throw std::invalid_argument("deepslice: tensor must be 1D [N] or 2D [N, C]");
         }
     }
 

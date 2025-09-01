@@ -410,16 +410,20 @@ Tensor<T> &Tensor<T>::operator=(const Tensor<T> &other)
         logger("assigning new tensor, old shape " + this->shape_to_string() + " other shape: " + other.shape_to_string() +
                    " this owns data " + std::to_string(this->owns_data),
                "DEBUG", __FILE__, __LINE__);
-        
-        if (this->owns_data)
-        {
-            logger("freeing memory", "DEBUG", __FILE__, __LINE__);
-            free_memory();
+
+        if (this-> owns_data && this->data_size == other.data_size && this->device == other.device) {
+            shape = other.shape;
+        } else {
+            if (this->owns_data)
+            {
+                logger("freeing memory", "DEBUG", __FILE__, __LINE__);
+                free_memory();
+            }
+            shape = other.shape;
+            data_size = other.data_size;
+            device = other.device;
+            allocate_gpu_memory(shape);
         }
-        shape = other.shape;
-        data_size = other.data_size;
-        device = other.device;
-        allocate_gpu_memory(shape);
         
         // Copy data on GPU
         CUDA_CHECK(cudaMemcpy(data_ptr, other.data_ptr, data_size * sizeof(T), cudaMemcpyDeviceToDevice));
@@ -545,7 +549,8 @@ const T &Tensor<T>::operator()(int i, int j) const
 }
 
 template <typename T>
-Tensor<T> Tensor<T>::slice(size_t start_idx, size_t batch_size) const {
+Tensor<T> Tensor<T>::deepslice(size_t start_idx, size_t batch_size) const {
+    //logger("Slicing used, start_idx" + std::to_string(start_idx) + ", batch " + std::to_string(batch_size), "INFO", __FILE__, __LINE__);
     if (shape.size() == 2) {
     
     size_t N = shape[0];

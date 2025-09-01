@@ -130,11 +130,11 @@ int main() {
         {
             // Load a batch of data
             std::clock_t batch_start_time = std::clock();
-            Tensor<precision> data_batch = train_data.slice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
+            Tensor<precision> data_batch = train_data.deepslice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
 
-            Tensor<int> label_batch = train_labels.slice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
+            Tensor<int> label_batch = train_labels.deepslice(BATCH_SIZE * (batch_idx-1), BATCH_SIZE);
             logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
             data_loading_time += (std::clock() - batch_start_time) / (double) CLOCKS_PER_SEC;
