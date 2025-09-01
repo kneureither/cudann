@@ -94,6 +94,14 @@ int main() {
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
 
     // setup timing
+    cudaDeviceProp p{};
+    cudaGetDeviceProperties(&p, 0);   // pick your device id
+    printf("warpSize=%d\n", p.warpSize);                      // usually 32
+    printf("maxThreadsPerBlock=%d\n", p.maxThreadsPerBlock);  // often 1024
+    printf("maxThreadsPerMultiProcessor=%d\n", p.maxThreadsPerMultiProcessor);
+    printf("sharedMemPerMultiprocessor=%zu\n", p.sharedMemPerMultiprocessor);
+    printf("regsPerMultiprocessor=%d\n", p.regsPerMultiprocessor);
+    printf("multiProcessorCount=%d\n", p.multiProcessorCount);
     
 
     for (int epoch = 1; epoch <= max_epochs; ++epoch)
