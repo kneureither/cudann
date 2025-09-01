@@ -133,6 +133,7 @@ int main() {
     Timer timer;
     double data_loading_time = 0.0;
     double forward_time = 0.0;
+    double loss_time = 0.0;
     double backward_time = 0.0;
     double step_time = 0.0;
     double eval_time = 0.0;
@@ -176,7 +177,7 @@ int main() {
     // setup loss
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
 
-    #ifdef CUDA_AVAILABLE
+#ifdef CUDA_AVAILABLE
     cudaDeviceProp p{};
     cudaGetDeviceProperties(&p, 0);   // pick your device id
     printf("warpSize=%d\n", p.warpSize);                      // usually 32
@@ -185,7 +186,7 @@ int main() {
     printf("sharedMemPerMultiprocessor=%zu\n", p.sharedMemPerMultiprocessor);
     printf("regsPerMultiprocessor=%d\n", p.regsPerMultiprocessor);
     printf("multiProcessorCount=%d\n", p.multiProcessorCount);
-    #endif
+#endif
 
 
     for (int epoch = 1; epoch <= max_epochs; ++epoch)
@@ -214,12 +215,21 @@ int main() {
             logits = model.forward(data_batch);
             logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
 
-            precision loss = loss_fn.forward(logits, label_batch);
-            logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
 #ifdef CUDA_AVAILABLE
             forward_time += cuda_timer.stop();
+            cuda_timer.start();
 #else
             forward_time += timer.stop();
+            timer.start();
+#endif
+
+            precision loss = loss_fn.forward(logits, label_batch);
+            logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
+
+#ifdef CUDA_AVAILABLE
+            loss_time += cuda_timer.stop();
+#else
+            loss_time += timer.stop();
 #endif
 
             // Backward pass
@@ -271,7 +281,7 @@ int main() {
     logger("Batch size: " + std::to_string(BATCH_SIZE), "INFO");
     logger("Max epochs: " + std::to_string(max_epochs), "INFO");
     logger("Learning rate: " + std::to_string(learning_rate), "INFO");
-    # if CUDA_AVAILABLE
+#ifdef CUDA_AVAILABLE
     logger("Using CUDA device: " + std::string(p.name), "INFO");
     logger("Compute capability: " + std::to_string(p.major) + "." + std::to_string(p.minor), "INFO");
     logger("Total global memory: " + std::to_string(p.totalGlobalMem / (1024 * 1024)) + " MB", "INFO");
@@ -281,9 +291,9 @@ int main() {
     logger("Max threads per block: " + std::to_string(p.maxThreadsPerBlock), "INFO");
     logger("Max threads per multiprocessor: " + std::to_string(p.maxThreadsPerMultiProcessor), "INFO");
     logger("Number of multiprocessors: " + std::to_string(p.multiProcessorCount), "INFO");
-    # else
+#else
     logger("Using CPU", "INFO");
-    # endif
+#endif
 
     logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
     logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
