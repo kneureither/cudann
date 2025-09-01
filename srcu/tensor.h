@@ -1,6 +1,5 @@
 #ifndef TENSOR_H
 #define TENSOR_H
-#define CUDA_AVAILABLE 0
 
 #include <vector>
 #include <string>
@@ -619,6 +618,31 @@ public:
         return out;
     }
 
+    // Add this method implementation for CPU tensors
+    void scatter_subtract_axis1(const Tensor<int>& indices, T value) {
+        if (shape.size() != 2) {
+            throw std::invalid_argument("scatter_subtract_axis1: tensor must be 2D");
+        }
+        if (indices.shape.size() != 1) {
+            throw std::invalid_argument("scatter_subtract_axis1: indices must be 1D");
+        }
+        if (indices.shape[0] != shape[0]) {
+            throw std::invalid_argument("scatter_subtract_axis1: indices length must match number of rows");
+        }
+        
+        size_t rows = shape[0];
+        size_t cols = shape[1];
+        
+        // CPU implementation - simple loop
+        for (size_t row = 0; row < rows; ++row) {
+            int col_idx = indices[row];
+            if (col_idx >= 0 && col_idx < static_cast<int>(cols)) {
+                (*this)(row, col_idx) -= value;
+            }
+        }
+    }
+
+
     //// DEVICE MANAGEMENT AND UTILS ////
 
     // bring the tensor to a specific device
@@ -657,7 +681,6 @@ public:
     // get the device the tensor is on
     Device get_device() const { return device; }
 
-    // print the values of the tensor as a string up to 4 dims like a numpy array would be displayed with indicating the shape
     std::string to_string() const
     {
         std::stringstream ss;
@@ -666,72 +689,32 @@ public:
             ss << "[";
             for (int i = 0; i < shape[0]; i++)
             {
-                ss << data_ptr[i] << ", ";
+                ss << data_ptr[i];
+                if (i < shape[0] - 1) ss << ", ";
             }
             ss << "]";
         }
         else if (shape.size() == 2)
         {
-            ss << "[";
+            ss << "[\n";
             for (int i = 0; i < shape[0]; i++)
             {
-                ss << "[";
+                ss << "  [";
                 for (int j = 0; j < shape[1]; j++)
                 {
-                    ss << data_ptr[i * shape[1] + j] << ", ";
+                    ss << data_ptr[i * shape[1] + j];
+                    if (j < shape[1] - 1) ss << ", ";
                 }
-                ss << "], \n";
-            }
-            ss << "]";
-        }
-        else if (shape.size() == 3)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << "[";
-                for (int j = 0; j < shape[1]; j++)
-                {
-                    ss << "[";
-                    for (int k = 0; k < shape[2]; k++)
-                    {
-                        ss << data_ptr[i * shape[1] * shape[2] + j * shape[2] + k] << ", ";
-                    }
-                    ss << "], \n";
-                }
-                ss << "], \n";
-            }
-            ss << "]";
-        }
-        else if (shape.size() == 4)
-        {
-            ss << "[";
-            for (int i = 0; i < shape[0]; i++)
-            {
-                ss << "[";
-                for (int j = 0; j < shape[1]; j++)
-                {
-                    ss << "[";
-                    for (int k = 0; k < shape[2]; k++)
-                    {
-                        ss << "[";
-                        for (int l = 0; l < shape[3]; l++)
-                        {
-                            ss << data_ptr[i * shape[1] * shape[2] * shape[3] + j * shape[2] * shape[3] + k * shape[3] + l] << ", ";
-                        }
-                        ss << "], \n";
-                    }
-                    ss << "], \n";
-                }
-                ss << "], \n";
+                ss << "]";
+                if (i < shape[0] - 1) ss << ",";
+                ss << "\n";
             }
             ss << "]";
         }
         else
         {
-            throw std::invalid_argument("Tried to print tensor with more than 4 dimensions");
+            throw std::invalid_argument("to_string not implemented for tensors with more than 2 dimensions");
         }
-
         return ss.str();
     }
 

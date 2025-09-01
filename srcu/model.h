@@ -1,7 +1,12 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#ifdef CUDA_AVAILABLE
 #include "tensor.cuh"
+#else 
+#include "tensor.h"
+#endif
+
 #include "utils.h"
 
 
@@ -218,8 +223,8 @@ Linear<T>::Linear(size_t input_size, size_t output_size)
 {
     // Xavier uniform initialization
     float limit = std::sqrt(6.0f / (input_size + output_size));
-    //W_.random_uniform(-limit, limit);
-    W_.ones();
+    W_.random_uniform(-limit, limit);
+    //W_.ones();
     b_.zeros();
     W_grad_.zeros();
     b_grad_.zeros();

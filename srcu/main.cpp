@@ -1,6 +1,6 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 48
+#define BATCH_SIZE 8
 #define MAX_EPOCHS 1
 #define LOG_LEVEL "INFO"
 
@@ -13,7 +13,12 @@
 
 #include "model.h"
 #include "dataloader.h"
+
+#ifdef CUDA_AVAILABLE
 #include "tensor.cuh"
+#else
+#include "tensor.h"
+#endif
 
 using precision = float;
 
@@ -86,14 +91,14 @@ int main() {
 
     // setup model
     Model<precision> model;
-    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, 10));
+    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, MNIST_LABELS));
     //model.layers.push_back(std::make_unique<ReLu<precision>>(30));
     //model.layers.push_back(std::make_unique<Linear<precision>>(30, MNIST_LABELS));
 
     // setup loss
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
 
-    // setup timing
+    #ifdef CUDA_AVAILABLE
     cudaDeviceProp p{};
     cudaGetDeviceProperties(&p, 0);   // pick your device id
     printf("warpSize=%d\n", p.warpSize);                      // usually 32
@@ -102,7 +107,10 @@ int main() {
     printf("sharedMemPerMultiprocessor=%zu\n", p.sharedMemPerMultiprocessor);
     printf("regsPerMultiprocessor=%d\n", p.regsPerMultiprocessor);
     printf("multiProcessorCount=%d\n", p.multiProcessorCount);
-    
+    #endif
+
+    // setup timing
+
 
     for (int epoch = 1; epoch <= max_epochs; ++epoch)
     {

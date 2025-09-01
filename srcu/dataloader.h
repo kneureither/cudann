@@ -6,7 +6,12 @@
 #include <bit>
 
 
+#ifdef CUDA_AVAILABLE
 #include "tensor.cuh"
+#else 
+#include "tensor.h"
+#endif
+
 #include "utils.h"
 #include "dataset.h"
 

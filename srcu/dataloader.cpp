@@ -1,6 +1,11 @@
 #include "dataset.h"
 #include "dataloader.h"
+
+#ifdef CUDA_AVAILABLE
 #include "tensor.cuh"
+#else 
+#include "tensor.h"
+#endif
 
 #include <iostream>
 #include <bit>

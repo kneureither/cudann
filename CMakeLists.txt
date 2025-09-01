@@ -46,7 +46,7 @@ set_target_properties(cumain PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RUNTIME_LIBRARY Shared
     CUDA_ARCHITECTURES "60"
-    COMPILE_FLAGS "-g"
+    COMPILE_FLAGS "-g -DCUDA_AVAILABLE"
     LINK_FLAGS "-g"
 )
 
@@ -62,7 +62,7 @@ set_target_properties(tensor_tests PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RUNTIME_LIBRARY Shared
     CUDA_ARCHITECTURES "60"
-    COMPILE_FLAGS "-g"
+    COMPILE_FLAGS "-g -DCUDA_AVAILABLE"
     LINK_FLAGS "-g"
 )
 
@@ -75,20 +75,9 @@ include_directories(src4)
 add_executable(tests
     src4/tests.cpp
     src4/dataloader.cpp
-    # src4/model.cpp
-    # Add any other .cpp files here
 )
 
 add_executable(main
-    src4/main.cpp
+    srcu/main.cpp
     src4/dataloader.cpp
-    # src4/model.cpp
-    # Add any other .cpp files here
 )
-
-# Optional: if you want to create a library
-# add_library(cudann_lib
-#     src4/dataloader.cpp
-#     src4/model.cpp
-# )
-# target_link_libraries(tests cudann_lib)
