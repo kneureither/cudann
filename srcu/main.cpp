@@ -299,8 +299,6 @@ int main() {
     logger("Using CPU", "INFO");
 #endif
 
-
-
     logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
     logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
     logger("Forward pass time: " + std::to_string(forward_time) + " seconds (" + std::to_string(forward_time / duration * 100) + "%)", "INFO");
