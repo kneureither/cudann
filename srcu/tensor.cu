@@ -544,6 +544,68 @@ const T &Tensor<T>::operator()(int i, int j) const
     return cpu_data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
 }
 
+template <typename T>
+Tensor<T> Tensor<T>::slice(size_t start_idx, size_t batch_size) const {
+    if (shape.size() == 2) {
+    
+    size_t N = shape[0];
+    size_t C = shape[1];
+    
+    // Validate indices
+    if (start_idx >= N) {
+        throw std::out_of_range("slice: start_idx (" + std::to_string(start_idx) + 
+                               ") >= tensor size (" + std::to_string(N) + ")");
+    }
+    
+    if (start_idx + batch_size > N) {
+        throw std::out_of_range("slice: start_idx + batch_size (" + 
+                               std::to_string(start_idx + batch_size) + 
+                               ") > tensor size (" + std::to_string(N) + ")");
+    }
+    
+    // Create result tensor
+    Tensor<T> result({batch_size, C});
+    
+    // Use cudaMemcpy for efficient contiguous memory copy
+    const T* src_ptr = data_ptr + (start_idx * C);
+    T* dst_ptr = result.get_data_ptr();
+    size_t copy_size = batch_size * C * sizeof(T);
+    
+    CUDA_CHECK(cudaMemcpy(dst_ptr, src_ptr, copy_size, cudaMemcpyDeviceToDevice));
+    
+    return result;
+
+    } else if (shape.size() == 1) {
+          
+        size_t N = shape[0];
+        
+        // Validate indices
+        if (start_idx >= N) {
+            throw std::out_of_range("slice: start_idx (" + std::to_string(start_idx) + 
+                                ") >= tensor size (" + std::to_string(N) + ")");
+        }
+        
+        if (start_idx + batch_size > N) {
+            throw std::out_of_range("slice: start_idx + batch_size (" + 
+                                std::to_string(start_idx + batch_size) + 
+                                ") > tensor size (" + std::to_string(N) + ")");
+        }
+        // Create result tensor
+        Tensor<T> result({batch_size});
+        
+        // Use cudaMemcpy for efficient contiguous memory copy
+        const T* src_ptr = data_ptr + (start_idx);
+        T* dst_ptr = result.get_data_ptr();
+        size_t copy_size = batch_size * sizeof(T);
+        
+        CUDA_CHECK(cudaMemcpy(dst_ptr, src_ptr, copy_size, cudaMemcpyDeviceToDevice));
+        
+        return result;
+    } else {
+        throw std::invalid_argument("slice: tensor must be 1D [N] or 2D [N, C], got shape " + shape_to_string());
+    }
+}
+
 // Arithmetic operators implementation
 template <typename T>
 Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
@@ -838,7 +900,7 @@ Tensor<T> Tensor<T>::log_softmax_axis1() const
     return out;
 }
 
-// Add this method implementation
+
 template <typename T>
 void Tensor<T>::scatter_subtract_axis1(const Tensor<int>& indices, T value) {
     if (shape.size() != 2) {

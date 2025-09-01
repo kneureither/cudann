@@ -151,6 +151,7 @@ public:
     const T &operator[](int i) const;
     T &operator()(int i, int j);
     const T &operator()(int i, int j) const;
+    Tensor<T> slice(size_t start_idx, size_t batch_size) const;
 
     // Arithmetic operators
     Tensor<T> &operator+=(const Tensor<T> &other);

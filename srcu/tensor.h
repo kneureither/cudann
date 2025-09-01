@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <numeric>
 #include <cmath>
+#include <cstring>
 
 #include "utils.h"
 
@@ -248,6 +249,56 @@ public:
             throw std::out_of_range("Index out of bounds");
         }
         return data_ptr[static_cast<size_t>(i) * shape[1] + static_cast<size_t>(j)];
+    }
+
+    Tensor<T> slice(size_t start_idx, size_t batch_size) const {
+        if (shape.size() == 2) {
+            size_t N = shape[0];
+            size_t C = shape[1];
+            
+            if (start_idx >= N) {
+                throw std::out_of_range("slice: start_idx out of range");
+            }
+            
+            if (start_idx + batch_size > N) {
+                throw std::out_of_range("slice: batch exceeds tensor bounds");
+            }
+            
+            // Create result tensor
+            Tensor<T> result({batch_size, C});
+            
+            // Calculate source and destination pointers
+            const T* src_ptr = data_ptr + (start_idx * C);
+            T* dst_ptr = result.get_data_ptr();
+            
+            // Copy contiguous memory block
+            std::memcpy(dst_ptr, src_ptr, batch_size * C * sizeof(T));
+            
+            return result;
+            
+        } else if (shape.size() == 1) {
+            size_t N = shape[0];
+
+            if (start_idx >= N) {
+                throw std::out_of_range("slice: start_idx out of range");
+            }
+            
+            if (start_idx + batch_size > N) {
+                throw std::out_of_range("slice: batch exceeds tensor bounds");
+            }
+            
+            // Create result tensor
+            Tensor<T> result({batch_size});
+            const T* src_ptr = data_ptr + start_idx;
+            T* dst_ptr = result.get_data_ptr();
+
+            std::memcpy(dst_ptr, src_ptr, batch_size * sizeof(T));
+
+            return result;
+
+        } else {
+            throw std::invalid_argument("slice: tensor must be 1D [N] or 2D [N, C]");
+        }
     }
 
     //// OTHER OPERATORS ////
