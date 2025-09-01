@@ -70,16 +70,11 @@ public:
         // grad = probs
         Tensor<T> grad = cached_probs_; // copy [B,C]
 
-        // subtract 1 at the true class for each row
-        for (int i = 0; i < B_; ++i)
-        {
-            int yi = cached_targets_[i];
-            grad(i, yi) -= T(1);
-        }
+        // Use the new tensor method instead of the loop
+        grad.scatter_subtract_axis1(cached_targets_, T(1));
 
         // scale for reduction
-        if (reduction_ == Reduction::Mean)
-        {
+        if (reduction_ == Reduction::Mean) {
             grad *= (T(1) / static_cast<T>(B_));
         }
         return grad;
@@ -222,7 +217,8 @@ Linear<T>::Linear(size_t input_size, size_t output_size)
 {
     // Xavier uniform initialization
     float limit = std::sqrt(6.0f / (input_size + output_size));
-    W_.random_uniform(-limit, limit);
+    //W_.random_uniform(-limit, limit);
+    W_.ones();
     b_.zeros();
     W_grad_.zeros();
     b_grad_.zeros();
