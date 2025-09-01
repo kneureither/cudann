@@ -280,6 +280,18 @@ __global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows,
     }
 }
 
+template<typename T>
+__global__ void scatter_subtract_axis1_kernel(T* data, const int* indices, T value, size_t rows, size_t cols) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (row < rows) {
+        int col_idx = indices[row];
+        if (col_idx >= 0 && col_idx < cols) {
+            data[row * cols + col_idx] -= value;
+        }
+    }
+}
+
 template <typename T>
 __global__ void update_value_kernel(T val, T* d_ptr) {
     //cudaMemcpy(d_ptr, &val, sizeof(T), cudaMemcpyHostToDevice);
@@ -826,6 +838,31 @@ Tensor<T> Tensor<T>::log_softmax_axis1() const
     return out;
 }
 
+// Add this method implementation
+template <typename T>
+void Tensor<T>::scatter_subtract_axis1(const Tensor<int>& indices, T value) {
+    if (shape.size() != 2) {
+        throw std::invalid_argument("scatter_subtract_axis1: tensor must be 2D");
+    }
+    if (indices.shape.size() != 1) {
+        throw std::invalid_argument("scatter_subtract_axis1: indices must be 1D");
+    }
+    if (indices.shape[0] != shape[0]) {
+        throw std::invalid_argument("scatter_subtract_axis1: indices length must match number of rows");
+    }
+    
+    size_t rows = shape[0];
+    size_t cols = shape[1];
+    
+    dim3 block_size(256);
+    dim3 grid_size = get_grid_size(rows, block_size);
+    
+    scatter_subtract_axis1_kernel<<<grid_size, block_size>>>(
+        data_ptr, indices.get_data_ptr(), value, rows, cols
+    );
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
 template <typename T>
 void Tensor<T>::to_device(Device target_device)
 {
@@ -939,6 +976,8 @@ template __global__ void softmax_axis1_kernel<float>(const float*, float*, size_
 template __global__ void softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
 template __global__ void log_softmax_axis1_kernel<float>(const float*, float*, size_t, size_t);
 template __global__ void log_softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
+template __global__ void scatter_subtract_axis1_kernel<float>(float*, const int*, float, size_t, size_t);
+template __global__ void scatter_subtract_axis1_kernel<int>(int*, const int*, int, size_t, size_t);
 template __global__ void update_value_kernel<float>(float, float*);
 template __global__ void update_value_kernel<int>(int, int*);
 

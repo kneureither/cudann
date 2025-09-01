@@ -168,6 +168,7 @@ public:
     Tensor<int> argmax(int axis) const;
     Tensor<T> softmax_axis1() const;
     Tensor<T> log_softmax_axis1() const;
+    void scatter_subtract_axis1(const Tensor<int>& indices, T value = T(1));
 
     // Device management and utilities
     void to_device(Device target_device);

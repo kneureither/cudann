@@ -1,8 +1,8 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 8
+#define BATCH_SIZE 48
 #define MAX_EPOCHS 1
-#define LOG_LEVEL "DEBUG"
+#define LOG_LEVEL "INFO"
 
 #include <iostream>
 #include <vector>
@@ -86,9 +86,9 @@ int main() {
 
     // setup model
     Model<precision> model;
-    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, 30));
-    model.layers.push_back(std::make_unique<ReLu<precision>>(30));
-    model.layers.push_back(std::make_unique<Linear<precision>>(30, MNIST_LABELS));
+    model.layers.push_back(std::make_unique<Linear<precision>>(MNIST_IMAGE_SIZE, 10));
+    //model.layers.push_back(std::make_unique<ReLu<precision>>(30));
+    //model.layers.push_back(std::make_unique<Linear<precision>>(30, MNIST_LABELS));
 
     // setup loss
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
@@ -112,8 +112,11 @@ int main() {
             
             // Load a batch of data
             Tensor<precision> data_batch = train_loader.load_data_batch(batch_idx-1);
+            logger("data_batch : " + data_batch.to_string(), "DEBUG", __FILE__, __LINE__);
+            logger("data_batch shape: " + data_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+
             Tensor<int> label_batch = train_loader.load_labels_batch(batch_idx-1);
-            //logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
+            logger("Batch labels: " + label_batch.to_string(), "DEBUG", __FILE__, __LINE__);
             logger("Label_batch shape: " + label_batch.shape_to_string(), "DEBUG", __FILE__, __LINE__);
 
             // Forward pass
@@ -141,12 +144,8 @@ int main() {
                 eval_result res = evaluation(model, test_loader, false);
                 logger("Evaluation results: " + std::to_string(res.num_correct) + "/" + std::to_string(res.num_total) + " (Accuracy: " + std::to_string(res.accuracy) + ")", "INFO");
                 }
-
-            break;
         }
     }
-
-    return 0;
 
     logger("Final Evaluation...", "INFO");
     eval_result res = evaluation(model, test_loader, false);
