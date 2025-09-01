@@ -66,7 +66,7 @@ set_target_properties(tensor_tests PROPERTIES
     LINK_FLAGS "-g"
 )
 
-target_link_libraries(tensor_tests ${CUDA_LIBRARIES} curand)
+target_link_libraries(tensor_tests ${CUDA_LIBRARIES} curand pthread)
 
 # Include directories for headers
 include_directories(src4)

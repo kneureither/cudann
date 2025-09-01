@@ -91,7 +91,7 @@ bool test_tensor_access() {
     Tensor<float> vec({5});
     vec.zeros();
     for (int i = 0; i < 5; i++) {
-        vec[i] = static_cast<float>(i + 1);
+        vec.update_value_at_idx(static_cast<float>(i + 1), i);
     }
     std::cout << "1D tensor (manual fill):\n" << vec.to_string() << std::endl;
     
@@ -100,7 +100,7 @@ bool test_tensor_access() {
     mat.zeros();
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            mat(i, j) = static_cast<float>(i * 3 + j + 1);
+            mat.update_value_at_idx(static_cast<float>(i * 3 + j + 1), i * 3 + j);
         }
     }
     std::cout << "2D tensor (manual fill):\n" << mat.to_string() << std::endl;
@@ -143,8 +143,8 @@ bool test_tensor_addition() {
     
     // Fill with simple values
     for (int i = 0; i < 6; i++) {
-        a.get_data_ptr()[i] = static_cast<float>(i + 1);
-        b.get_data_ptr()[i] = static_cast<float>(i + 1);
+        a.update_value_at_idx(static_cast<float>(i + 1), i);
+        b.update_value_at_idx(static_cast<float>(i + 1), i);
     }
     
     std::cout << "Tensor A:\n" << a.to_string() << std::endl;
@@ -158,10 +158,10 @@ bool test_tensor_addition() {
     Tensor<float> vector({3});
     
     for (int i = 0; i < 6; i++) {
-        matrix.get_data_ptr()[i] = static_cast<float>(i + 1);
+        matrix.update_value_at_idx(static_cast<float>(i + 1), i);
     }
     for (int i = 0; i < 3; i++) {
-        vector.get_data_ptr()[i] = static_cast<float>(10);
+        vector.update_value_at_idx(static_cast<float>(10), i);
     }
     
     std::cout << "Matrix before broadcast addition:\n" << matrix.to_string() << std::endl;
@@ -181,12 +181,12 @@ bool test_tensor_subtraction() {
     Tensor<float> b({2, 2});
     
     // A = [[5, 6], [7, 8]]
-    a.get_data_ptr()[0] = 5; a.get_data_ptr()[1] = 6;
-    a.get_data_ptr()[2] = 7; a.get_data_ptr()[3] = 8;
-    
+    a.update_value_at_idx(5, 0); a.update_value_at_idx(6, 1);
+    a.update_value_at_idx(7, 2); a.update_value_at_idx(8, 3);
+
     // B = [[1, 2], [3, 4]]
-    b.get_data_ptr()[0] = 1; b.get_data_ptr()[1] = 2;
-    b.get_data_ptr()[2] = 3; b.get_data_ptr()[3] = 4;
+    b.update_value_at_idx(1, 0); b.update_value_at_idx(2, 1);
+    b.update_value_at_idx(3, 2); b.update_value_at_idx(4, 3);
     
     std::cout << "Tensor A:\n" << a.to_string() << std::endl;
     std::cout << "Tensor B:\n" << b.to_string() << std::endl;
@@ -206,13 +206,13 @@ bool test_tensor_multiplication() {
     Tensor<float> b({2, 2});
     
     // A = [[2, 3], [4, 5]]
-    a.get_data_ptr()[0] = 2; a.get_data_ptr()[1] = 3;
-    a.get_data_ptr()[2] = 4; a.get_data_ptr()[3] = 5;
-    
+    a.update_value_at_idx(2, 0); a.update_value_at_idx(3, 1);
+    a.update_value_at_idx(4, 2)4; a.update_value_at_idx(5, 3);
+
     // B = [[1, 2], [3, 4]]
-    b.get_data_ptr()[0] = 1; b.get_data_ptr()[1] = 2;
-    b.get_data_ptr()[2] = 3; b.get_data_ptr()[3] = 4;
-    
+    b.update_value_at_idx(1, 0); b.update_value_at_idx(2, 1);
+    b.update_value_at_idx(3, 2); b.update_value_at_idx(4, 3);
+
     std::cout << "Tensor A:\n" << a.to_string() << std::endl;
     std::cout << "Tensor B:\n" << b.to_string() << std::endl;
     
@@ -221,9 +221,9 @@ bool test_tensor_multiplication() {
     
     // Scalar multiplication
     Tensor<float> c({2, 2});
-    c.get_data_ptr()[0] = 1; c.get_data_ptr()[1] = 2;
-    c.get_data_ptr()[2] = 3; c.get_data_ptr()[3] = 4;
-    
+    c.update_value_at_idx(1, 0); c.update_value_at_idx(2, 1);
+    c.update_value_at_idx(3, 2); c.update_value_at_idx(4, 3);
+
     std::cout << "Tensor C before scalar multiplication:\n" << c.to_string() << std::endl;
     c *= 3.0f;
     std::cout << "C *= 3.0 result:\n" << c.to_string() << std::endl;
@@ -238,7 +238,7 @@ bool test_tensor_greater_than() {
     Tensor<float> a({2, 3});
     // Fill with values [1, 2, 3, 4, 5, 6]
     for (int i = 0; i < 6; i++) {
-        a.get_data_ptr()[i] = static_cast<float>(i + 1);
+        a.update_value_at_idx(static_cast<float>(i + 1), i);
     }
     
     std::cout << "Input tensor:\n" << a.to_string() << std::endl;
@@ -256,16 +256,16 @@ bool test_tensor_matmul() {
     // A: 2x3 matrix
     Tensor<float> a({2, 3});
     // A = [[1, 2, 3], [4, 5, 6]]
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 2; a.get_data_ptr()[2] = 3;
-    a.get_data_ptr()[3] = 4; a.get_data_ptr()[4] = 5; a.get_data_ptr()[5] = 6;
-    
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(2, 1); a.update_value_at_idx(3, 2);
+    a.update_value_at_idx(4, 3); a.update_value_at_idx(5, 4); a.update_value_at_idx(6, 5);
+
     // B: 3x2 matrix
     Tensor<float> b({3, 2});
     // B = [[1, 2], [3, 4], [5, 6]]
-    b.get_data_ptr()[0] = 1; b.get_data_ptr()[1] = 2;
-    b.get_data_ptr()[2] = 3; b.get_data_ptr()[3] = 4;
-    b.get_data_ptr()[4] = 5; b.get_data_ptr()[5] = 6;
-    
+    b.update_value_at_idx(1, 0); b.update_value_at_idx(2, 1);
+    b.update_value_at_idx(3, 2); b.update_value_at_idx(4, 3);
+    b.update_value_at_idx(5, 4); b.update_value_at_idx(6, 5);
+
     std::cout << "Matrix A (2x3):\n" << a.to_string() << std::endl;
     std::cout << "Matrix B (3x2):\n" << b.to_string() << std::endl;
     
@@ -286,9 +286,9 @@ bool test_tensor_transpose() {
     
     Tensor<float> a({2, 3});
     // A = [[1, 2, 3], [4, 5, 6]]
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 2; a.get_data_ptr()[2] = 3;
-    a.get_data_ptr()[3] = 4; a.get_data_ptr()[4] = 5; a.get_data_ptr()[5] = 6;
-    
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(2, 1); a.update_value_at_idx(3, 2);
+    a.update_value_at_idx(4, 3); a.update_value_at_idx(5, 4); a.update_value_at_idx(6, 5);
+
     std::cout << "Original matrix (2x3):\n" << a.to_string() << std::endl;
     
     Tensor<float> a_t = a.transpose();
@@ -306,9 +306,9 @@ bool test_tensor_exp() {
     
     Tensor<float> a({2, 2});
     // A = [[0, 1], [2, 3]]
-    a.get_data_ptr()[0] = 0; a.get_data_ptr()[1] = 1;
-    a.get_data_ptr()[2] = 2; a.get_data_ptr()[3] = 3;
-    
+    a.update_value_at_idx(0, 0); a.update_value_at_idx(1, 1);
+    a.update_value_at_idx(2, 2); a.update_value_at_idx(3, 3);
+
     std::cout << "Input tensor:\n" << a.to_string() << std::endl;
     
     Tensor<float> exp_result = a.exp();
@@ -326,9 +326,9 @@ bool test_tensor_log() {
     
     Tensor<float> a({2, 2});
     // A = [[1, e], [e^2, 10]]
-    a.get_data_ptr()[0] = 1.0f; a.get_data_ptr()[1] = std::exp(1.0f);
-    a.get_data_ptr()[2] = std::exp(2.0f); a.get_data_ptr()[3] = 10.0f;
-    
+    a.update_value_at_idx(1.0f, 0); a.update_value_at_idx(std::exp(1.0f), 1);
+    a.update_value_at_idx(std::exp(2.0f), 2); a.update_value_at_idx(10.0f, 3);
+
     std::cout << "Input tensor:\n" << a.to_string() << std::endl;
     
     Tensor<float> log_result = a.log();
@@ -347,7 +347,7 @@ bool test_tensor_sum() {
     Tensor<float> a({3, 4});
     // Fill with values 1-12
     for (int i = 0; i < 12; i++) {
-        a.get_data_ptr()[i] = static_cast<float>(i + 1);
+        a.update_value_at_idx(static_cast<float>(i + 1), i);
     }
     
     std::cout << "Input tensor (3x4):\n" << a.to_string() << std::endl;
@@ -373,9 +373,9 @@ bool test_tensor_argmax() {
     
     Tensor<float> a({2, 4});
     // A = [[1, 4, 2, 3], [8, 5, 7, 6]]
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 4; a.get_data_ptr()[2] = 2; a.get_data_ptr()[3] = 3;
-    a.get_data_ptr()[4] = 8; a.get_data_ptr()[5] = 5; a.get_data_ptr()[6] = 7; a.get_data_ptr()[7] = 6;
-    
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(4, 1); a.update_value_at_idx(2, 2); a.update_value_at_idx(3, 3);
+    a.update_value_at_idx(8, 4); a.update_value_at_idx(5, 5); a.update_value_at_idx(7, 6); a.update_value_at_idx(6, 7);
+
     std::cout << "Input tensor (2x4):\n" << a.to_string() << std::endl;
     
     // Argmax along axis 0
@@ -399,9 +399,9 @@ bool test_tensor_softmax() {
     
     Tensor<float> a({2, 3});
     // A = [[1, 2, 3], [4, 5, 6]]
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 2; a.get_data_ptr()[2] = 3;
-    a.get_data_ptr()[3] = 4; a.get_data_ptr()[4] = 5; a.get_data_ptr()[5] = 6;
-    
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(2, 1); a.update_value_at_idx(3, 2);
+    a.update_value_at_idx(4, 3); a.update_value_at_idx(5, 4); a.update_value_at_idx(6, 5);
+
     std::cout << "Input tensor:\n" << a.to_string() << std::endl;
     
     Tensor<float> softmax_result = a.softmax_axis1();
@@ -423,9 +423,9 @@ bool test_tensor_log_softmax() {
     
     Tensor<float> a({2, 3});
     // A = [[1, 2, 3], [4, 5, 6]]
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 2; a.get_data_ptr()[2] = 3;
-    a.get_data_ptr()[3] = 4; a.get_data_ptr()[4] = 5; a.get_data_ptr()[5] = 6;
-    
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(2, 1); a.update_value_at_idx(3, 2);
+    a.update_value_at_idx(4, 3); a.update_value_at_idx(5, 4); a.update_value_at_idx(6, 5);
+
     std::cout << "Input tensor:\n" << a.to_string() << std::endl;
     
     Tensor<float> log_softmax_result = a.log_softmax_axis1();
@@ -455,8 +455,8 @@ bool test_tensor_assignment() {
     std::cout << "\n=== Testing Tensor Assignment ===" << std::endl;
     
     Tensor<float> a({2, 2});
-    a.get_data_ptr()[0] = 1; a.get_data_ptr()[1] = 2;
-    a.get_data_ptr()[2] = 3; a.get_data_ptr()[3] = 4;
+    a.update_value_at_idx(1, 0); a.update_value_at_idx(2, 1);
+    a.update_value_at_idx(3, 2); a.update_value_at_idx(4, 3);
     
     std::cout << "Original tensor A:\n" << a.to_string() << std::endl;
     
