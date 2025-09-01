@@ -52,6 +52,22 @@ set_target_properties(cumain PROPERTIES
 
 target_link_libraries(cumain ${CUDA_LIBRARIES} curand)
 
+# Add tensor tests executable
+add_executable(tensor_tests
+    srcu/tensor_tests.cu
+    srcu/tensor.cu
+)
+
+set_target_properties(tensor_tests PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RUNTIME_LIBRARY Shared
+    CUDA_ARCHITECTURES "60"
+    COMPILE_FLAGS "-g"
+    LINK_FLAGS "-g"
+)
+
+target_link_libraries(tensor_tests ${CUDA_LIBRARIES} curand)
+
 # Include directories for headers
 include_directories(src4)
 
