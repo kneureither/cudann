@@ -207,7 +207,7 @@ bool test_tensor_multiplication() {
     
     // A = [[2, 3], [4, 5]]
     a.update_value_at_idx(2, 0); a.update_value_at_idx(3, 1);
-    a.update_value_at_idx(4, 2)4; a.update_value_at_idx(5, 3);
+    a.update_value_at_idx(4, 2); a.update_value_at_idx(5, 3);
 
     // B = [[1, 2], [3, 4]]
     b.update_value_at_idx(1, 0); b.update_value_at_idx(2, 1);
@@ -441,7 +441,7 @@ bool test_tensor_log_softmax() {
     // All log-softmax values should be <= 0
     bool all_negative = true;
     for (int i = 0; i < 6; i++) {
-        if (log_softmax_result.get_data_ptr()[i] > 0.0f) {
+        if (log_softmax_result.get_cpu_data_ptr()[i] > 0.0f) {
             all_negative = false;
             break;
         }
@@ -466,7 +466,7 @@ bool test_tensor_assignment() {
     std::cout << "Assigned tensor B:\n" << b.to_string() << std::endl;
     
     // Modify original to ensure deep copy
-    a.get_data_ptr()[0] = 999;
+    a.update_value_at_idx(999.0f, 0);
     std::cout << "After modifying A[0] to 999:\n";
     std::cout << "Tensor A:\n" << a.to_string() << std::endl;
     std::cout << "Tensor B:\n" << b.to_string() << std::endl;
