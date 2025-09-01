@@ -463,6 +463,12 @@ template <typename T>
 const T *Tensor<T>::get_data_ptr() const { return data_ptr; }
 
 template <typename T>
+T *Tensor<T>::get_cpu_data_ptr() { sync_to_cpu(); return cpu_data_ptr; }
+
+template <typename T>
+const T *Tensor<T>::get_cpu_data_ptr() const { sync_to_cpu(); return cpu_data_ptr; }
+
+template <typename T>
 Device Tensor<T>::get_device() const { return device; }
 
 // Access operators implementation

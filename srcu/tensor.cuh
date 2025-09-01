@@ -140,8 +140,10 @@ public:
     // Getters
     std::vector<size_t> get_shape() const;
     size_t get_size() const;
-    T *get_data_ptr();
-    const T *get_data_ptr() const;
+    T *get_data_ptr(); // accesses device pointer
+    const T *get_data_ptr() const; // accesses device pointer
+    T *get_cpu_data_ptr(); // accesses cpu pointer
+    const T *get_cpu_data_ptr() const; // accesses cpu pointer
     Device get_device() const;
 
     // Access operators (require CPU sync - use sparingly)
