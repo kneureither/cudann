@@ -407,16 +407,18 @@ Tensor<T> &Tensor<T>::operator=(const Tensor<T> &other)
 {
     if (this != &other)
     {
-        logger("assigning new tensor, old shape " + this->shape_to_string() + " other shape: " + other.shape_to_string() +
-                   " this owns data " + std::to_string(this->owns_data),
-               "DEBUG", __FILE__, __LINE__);
+        #ifdef DEBUG
+        logger("assigning new tensor, old shape " + this->shape_to_string() + " other shape: " + other.shape_to_string() + " this owns data " + std::to_string(this->owns_data), "DEBUG", __FILE__, __LINE__);
+        #endif
 
         if (this-> owns_data && this->data_size == other.data_size && this->device == other.device) {
             shape = other.shape;
         } else {
             if (this->owns_data)
             {
+                #ifdef DEBUG
                 logger("freeing memory", "DEBUG", __FILE__, __LINE__);
+                #endif
                 free_memory();
             }
             shape = other.shape;
@@ -760,7 +762,9 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
 {
     if (shape == other.shape)
     {
+        #ifdef DEBUG
         logger("Adding tensors with shape: " + shape_to_string() + " and " + other.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+        #endif
         dim3 block_size(256);
         dim3 grid_size = get_grid_size(data_size, block_size);
         add_tensors_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, data_size);
@@ -771,7 +775,9 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
     // adding a vector to matrix (e.g. [batch, features] + [features])
     else if (shape.size() == 2 && other.shape.size() == 1 && shape[1] == other.shape[0])
     {
+        #ifdef DEBUG
         logger("Adding matrix with shape: " + shape_to_string() + " and vector with shape: " + other.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+        #endif
         dim3 block_size(16, 16);
         dim3 grid_size = get_grid_size_2d(shape[0], shape[1], block_size);
         add_matrix_vector_kernel<<<grid_size, block_size>>>(data_ptr, other.data_ptr, shape[0], shape[1]);
@@ -782,8 +788,10 @@ Tensor<T> &Tensor<T>::operator+=(const Tensor<T> &other)
     // adding a scalar to the tensor
     else if (other.shape.size() == 1 && other.shape[0] == 1 && shape.size() > 0)
     {   
-        other.sync_to_cpu();
+        other.sync_to_cpu();  // TODO performance
+        #ifdef DEBUG
         logger("Adding scalar to tensor with shape: " + shape_to_string() + " and scalar: " + std::to_string(other.cpu_data_ptr[0]), "DEBUG", __FILE__, __LINE__);
+        #endif
         dim3 block_size(256);
         dim3 grid_size = get_grid_size(data_size, block_size);
         add_scalar_kernel<<<grid_size, block_size>>>(data_ptr, other.cpu_data_ptr[0], data_size);
@@ -926,6 +934,7 @@ Tensor<T> Tensor<T>::sum(int axis) const
     if (shape.size() == 1)
     {
         // For 1D tensor, sum all elements
+        // TODO Performance
         sync_to_cpu();
         T sum_val = 0;
         for (int i = 0; i < shape[0]; i++)
@@ -970,6 +979,7 @@ Tensor<T> Tensor<T>::sum(int axis) const
 template <typename T>
 Tensor<int> Tensor<T>::argmax(int axis) const
 {
+    // TODO Performance
     if (shape.size() == 1) {
         sync_to_cpu();
         Tensor<int> out({1});

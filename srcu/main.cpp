@@ -1,8 +1,9 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 32
-#define MAX_EPOCHS 1
+#define BATCH_SIZE 512
+#define MAX_EPOCHS 5
 #define LOG_LEVEL "INFO"
+#define WRITE_CSV 1
 
 #include <chrono>
 #include <iostream>
@@ -124,8 +125,8 @@ public:
 int main() {
 
     int max_epochs = MAX_EPOCHS;
-    float learning_rate = 0.001f;
-    int eval_every_steps = 1000;
+    float learning_rate = 0.001f * BATCH_SIZE;
+    int eval_every_steps = 1000000;
     int log_every_steps = 100;
     size_t eval_samples = 1000;
 
@@ -133,6 +134,8 @@ int main() {
     Timer overall_timer;
     overall_timer.start();
     Timer timer;
+    timer.start();
+    double data_prep_time = 0.0;
     double data_loading_time = 0.0;
     double forward_time = 0.0;
     double loss_time = 0.0;
@@ -179,6 +182,8 @@ int main() {
 
     // setup loss
     SoftmaxCrossEntropy<precision> loss_fn(Reduction::Mean);
+
+    data_prep_time += timer.stop();
 
 #ifdef CUDA_AVAILABLE
     cudaDeviceProp p{};
@@ -300,14 +305,16 @@ int main() {
 #endif
 
     logger("Training completed in " + std::to_string(duration) + " seconds", "INFO");
+    logger("Data and model prep time: " + std::to_string(data_prep_time) + " seconds (" + std::to_string(data_prep_time / duration * 100) + "%)", "INFO");
     logger("Data loading time: " + std::to_string(data_loading_time) + " seconds (" + std::to_string(data_loading_time / duration * 100) + "%)", "INFO");
     logger("Forward pass time: " + std::to_string(forward_time) + " seconds (" + std::to_string(forward_time / duration * 100) + "%)", "INFO");
     logger("Loss computation time: " + std::to_string(loss_time) + " seconds (" + std::to_string(loss_time / duration * 100) + "%)", "INFO");
     logger("Backward pass time: " + std::to_string(backward_time) + " seconds (" + std::to_string(backward_time / duration * 100) + "%)", "INFO");
     logger("Step time: " + std::to_string(step_time) + " seconds (" + std::to_string(step_time / duration * 100) + "%)", "INFO");
     logger("Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
-    logger("Final Evaluation time: " + std::to_string(eval_time) + " seconds (" + std::to_string(eval_time / duration * 100) + "%)", "INFO");
+    logger("Final Evaluation time: " + std::to_string(final_eval_time) + " seconds (" + std::to_string(final_eval_time / duration * 100) + "%)", "INFO");
 
+#if WRITE_CSV
     // Write results to CSV file
     std::ofstream csv_file("eval.csv", std::ios::app);
     if (csv_file.is_open()) {
@@ -329,12 +336,14 @@ int main() {
                  << res.accuracy << ", "
                  << eval_samples << ", "
                  << duration << ", "
+                 << data_prep_time << ", "
                  << data_loading_time << ", "
                  << forward_time << ", "
                  << loss_time << ", "
                  << backward_time << ", "
                  << step_time << ", "
                  << eval_time << ", "
+                 << final_eval_time << ", "
 #ifdef CUDA_AVAILABLE
                  << p.name << ", "
                  << p.major << "." << p.minor << ", "
@@ -353,6 +362,7 @@ int main() {
     } else {
         logger("Failed to open eval.csv for writing", "ERROR");
     }
+#endif
 
     return 0;
 }

@@ -1,1 +1,2 @@
 date, time, mode, batch_size, max_epochs, lr, accuracy, eval_size, total_time, data_load_time, forward_time, loss_time, backward_time, step_time, eval_time, cuda_device, compute_cap, total_glob_mem, block_shared_mem, block_registers, warp_size, block_max_threads, multiproc_max_threads, multiproc_count
+2025-09-01, 18:15:50, CUDA, 32, 1, 0.001, 0.7581, 1000, 5.74387, 0.008652, 1.23998, 0.755986, 0.321048, 0.044722, 0.017848, NVIDIA L40S, 8.9, 45589, 48, 65536, 32, 1024, 1536, 142

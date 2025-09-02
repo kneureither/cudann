@@ -314,7 +314,7 @@ template <typename T>
 Tensor<T> Model<T>::forward(const Tensor<T> &in)
 {
     Tensor<T> output = in;
-    logger("Model forward pass with input shape: " + output.shape_to_string(), "DEBUG", __FILE__, __LINE__);
+    //logger("Model forward pass with input shape: " + output.shape_to_string(), "DEBUG", __FILE__, __LINE__);
     for (auto &layer : layers)
     {
         output = layer->forward(output);

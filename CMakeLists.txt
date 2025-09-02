@@ -13,7 +13,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 find_package(CUDA REQUIRED)
 
 # Set CUDA architectures (adjust based on your GPU)
-set(CMAKE_CUDA_ARCHITECTURES "60")
+set(CMAKE_CUDA_ARCHITECTURES "60 61 89")
 
 # Add debug symbols
 set(CMAKE_BUILD_TYPE Debug)
