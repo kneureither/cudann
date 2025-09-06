@@ -316,7 +316,7 @@ int main() {
 
 #if WRITE_CSV
     // Write results to CSV file
-    std::ofstream csv_file("eval.csv", std::ios::app);
+    std::ofstream csv_file("eval/eval.csv", std::ios::app);
     if (csv_file.is_open()) {
         // Get current date and time
         auto now = std::chrono::system_clock::now();
