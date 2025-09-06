@@ -1096,7 +1096,7 @@ void Tensor<T>::scatter_subtract_axis1(const Tensor<int>& indices, T value) {
 }
 
 template <typename T>
-Tensor<T> gather_axis1(const Tensor<int> &indices) const {
+Tensor<T> Tensor<T>::gather_axis1(const Tensor<int> &indices) const {
     if (shape.size() != 2) {
         throw std::invalid_argument("gather_axis1: tensor must be 2D");
     }
@@ -1238,6 +1238,8 @@ template __global__ void log_softmax_axis1_kernel<float>(const float*, float*, s
 template __global__ void log_softmax_axis1_kernel<int>(const int*, int*, size_t, size_t);
 template __global__ void scatter_subtract_axis1_kernel<float>(float*, const int*, float, size_t, size_t);
 template __global__ void scatter_subtract_axis1_kernel<int>(int*, const int*, int, size_t, size_t);
+template __global__ void gather_axis1_kernel<float>(const float*, const int*, float*, size_t, size_t);
+template __global__ void gather_axis1_kernel<int>(const int*, const int *, int*, size_t, size_t);
 template __global__ void update_value_kernel<float>(float, float*);
 template __global__ void update_value_kernel<int>(int, int*);
 

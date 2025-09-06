@@ -1,9 +1,12 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 8
+#define BATCH_SIZE 512
 #define MAX_EPOCHS 5
 #define LOG_LEVEL "INFO"
 #define WRITE_CSV 1
+#if CUDA_AVAILABLE
+/*#define CUDA_TIMER*/
+#endif
 
 #include <chrono>
 #include <iostream>
@@ -126,7 +129,7 @@ int main() {
 
     int max_epochs = MAX_EPOCHS;
     float learning_rate = 0.001f * BATCH_SIZE;
-    int eval_every_steps = 1000;
+    int eval_every_steps = 1000000;
     int log_every_steps = 100;
     size_t eval_samples = 1000;
 
@@ -145,7 +148,7 @@ int main() {
     double final_eval_time = 0.0;
     double epoch_time = 0.0;
 
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
     CudaTimer cuda_timer;
 #endif
 
@@ -215,7 +218,7 @@ int main() {
             data_loading_time += timer.stop();
 
             // Forward pass
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
             cuda_timer.start();
 #else
             timer.start();
@@ -223,7 +226,7 @@ int main() {
             logits = model.forward(data_batch);
             //logger("Logits: " + logits.to_string(), "DEBUG", __FILE__, __LINE__);
 
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
             forward_time += cuda_timer.stop();
             cuda_timer.start();
 #else
@@ -234,14 +237,14 @@ int main() {
             Tensor<precision> loss = loss_fn.forward(logits, label_batch);
             //logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
 
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
             loss_time += cuda_timer.stop();
 #else
             loss_time += timer.stop();
 #endif
 
             // Backward pass
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
             cuda_timer.start();
 #else
             timer.start();
@@ -250,7 +253,7 @@ int main() {
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
            //logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
-#ifdef CUDA_AVAILABLE
+#ifdef CUDA_TIMER
             backward_time += cuda_timer.stop();
 #else
             backward_time += timer.stop();
@@ -262,7 +265,7 @@ int main() {
             step_time += timer.stop();
 
             if (batch_idx % log_every_steps == 0) {
-                logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss[0]), "INFO");
+                logger("Batch " + std::to_string(batch_idx) + " Loss: " + /*std::to_string(loss[0])*/"NA", "INFO");
             }
 
             // eval
