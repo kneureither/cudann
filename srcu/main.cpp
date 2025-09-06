@@ -1,6 +1,6 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 512
+#define BATCH_SIZE 8
 #define MAX_EPOCHS 5
 #define LOG_LEVEL "INFO"
 #define WRITE_CSV 1
@@ -126,7 +126,7 @@ int main() {
 
     int max_epochs = MAX_EPOCHS;
     float learning_rate = 0.001f * BATCH_SIZE;
-    int eval_every_steps = 1000000;
+    int eval_every_steps = 1000;
     int log_every_steps = 100;
     size_t eval_samples = 1000;
 
@@ -231,8 +231,8 @@ int main() {
             timer.start();
 #endif
 
-            precision loss = loss_fn.forward(logits, label_batch);
-            logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
+            Tensor<precision> loss = loss_fn.forward(logits, label_batch);
+            //logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
 
 #ifdef CUDA_AVAILABLE
             loss_time += cuda_timer.stop();
@@ -262,7 +262,7 @@ int main() {
             step_time += timer.stop();
 
             if (batch_idx % log_every_steps == 0) {
-                logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "INFO");
+                logger("Batch " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss[0]), "INFO");
             }
 
             // eval

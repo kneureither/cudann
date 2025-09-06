@@ -17,7 +17,7 @@ template<typename T>
 class Loss
 {
 public:
-    virtual T forward(const Tensor<T>& logits, const Tensor<int>& targets) = 0;
+    virtual Tensor<T> forward(const Tensor<T>& logits, const Tensor<int>& targets) = 0;
     virtual Tensor<T> backward() = 0;
 };
 
@@ -27,9 +27,12 @@ class SoftmaxCrossEntropy : public Loss<T>
     Tensor<T> props; // softmax output
 public:
     explicit SoftmaxCrossEntropy(Reduction red = Reduction::Mean) 
-        : reduction_(red) {};
+        : reduction_(red) {
+            last_loss_ = Tensor<T>({1});
+            last_loss_.zeros();
+        };
 
-    T forward(const Tensor<T>& logits, const Tensor<int>& targets) override {
+    Tensor<T> forward(const Tensor<T>& logits, const Tensor<int>& targets) override {
         if (logits.shape.size() != 2) {
             throw std::invalid_argument("Loss forward: logits must be 2D [B,C]");
         }
@@ -42,31 +45,25 @@ public:
             throw std::invalid_argument("Loss forward: targets length != batch size");
         }
 
-        // log_probs for stable NLL
+        // log_probs for stable NLL 
         Tensor<T> log_probs = logits.log_softmax_axis1(); // [B,C]
         // also cache probs for backward
         cached_probs_ = log_probs.exp(); // [B,C]
         cached_targets_ = targets; // [B]
 
         // Compute NLL: loss_i = -log_probs[i, targets[i]]
-        T total = T(0);
-        for (size_t i = 0; i < B_; ++i)
-        {
-            int yi = cached_targets_[static_cast<int>(i)]; // targets is 1D int tensor
-            if (yi < 0 || static_cast<size_t>(yi) >= C_)
-            {
-                throw std::out_of_range("targets contain class out of range");
-            }
-            total += -log_probs(static_cast<int>(i), yi);
-        }
+        Tensor<T> total = log_probs.gather_axis1(/*indices=*/ cached_targets_); // [B]
+        total *= T(-1); // -log_probs
+        // sum or mean reduction
+        Tensor<T> sum = total.sum(/*axis=*/0);
 
         if (reduction_ == Reduction::Mean)
         {
-            last_loss_ = total / static_cast<T>(B_);
+            last_loss_ = sum *= 1./static_cast<T>(B_);
         }
         else
         { // Reduction::Sum
-            last_loss_ = total;
+            last_loss_ = sum;
         }
         return last_loss_;
     };
@@ -76,7 +73,6 @@ public:
         // grad = probs
         Tensor<T> grad = cached_probs_; // copy [B,C]
 
-        // Use the new tensor method instead of the loop
         grad.scatter_subtract_axis1(cached_targets_, T(1));
 
         // scale for reduction
@@ -91,8 +87,8 @@ private:
     Tensor<T> cached_probs_; // [B, C] softmax(logits)
     Tensor<int> cached_targets_; // [B]
     size_t B_{0}, C_{0};
-    T last_loss_{0};
-};
+    Tensor<T> last_loss_;
+    };
 
 //// LAYER CLASSES ////
 

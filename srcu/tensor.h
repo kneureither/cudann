@@ -742,7 +742,6 @@ public:
         return out;
     }
 
-    // Add this method implementation for CPU tensors
     void scatter_subtract_axis1(const Tensor<int>& indices, T value) {
         if (shape.size() != 2) {
             throw std::invalid_argument("scatter_subtract_axis1: tensor must be 2D");
@@ -764,6 +763,33 @@ public:
                 (*this)(row, col_idx) -= value;
             }
         }
+    }
+
+    Tensor<T> gather_axis1(const Tensor<int>& indices) const {
+        if (shape.size() != 2) {
+            throw std::invalid_argument("gather_axis1: tensor must be 2D");
+        }
+        if (indices.shape.size() != 1) {
+            throw std::invalid_argument("gather_axis1: indices must be 1D");
+        }
+        if (indices.shape[0] != shape[0]) {
+            throw std::invalid_argument("gather_axis1: indices length must match number of rows");
+        }
+        Tensor<T> result({shape[0]});
+
+        size_t rows = shape[0];
+        size_t cols = shape[1];
+
+        // CPU implementation - simple loop
+        for (size_t row = 0; row < rows; ++row) {
+            int col_idx = indices[row];
+            if (col_idx >= 0 && col_idx < static_cast<int>(cols)) {
+                result[row] = (*this)(row, col_idx);
+            } else {
+                throw std::out_of_range("gather_axis1: index out of bounds");
+            }
+        }
+        return result;
     }
 
 

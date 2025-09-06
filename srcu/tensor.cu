@@ -284,10 +284,22 @@ template<typename T>
 __global__ void scatter_subtract_axis1_kernel(T* data, const int* indices, T value, size_t rows, size_t cols) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     
-    if (row < rows) {
+    if (row < rows) { // check if in data array
         int col_idx = indices[row];
-        if (col_idx >= 0 && col_idx < cols) {
+        if (col_idx >= 0 && col_idx < cols) { // check if in data array
             data[row * cols + col_idx] -= value;
+        }
+    }
+}
+
+template <typename T>
+__global__ void gather_axis1_kernel(const T *data, const int *indices, T *output, size_t rows, size_t cols) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (row < rows) { // check if in data array
+        int col_idx = indices[row];
+        if (col_idx >= 0 && col_idx < cols) { // check if in data array
+            output[row] = data[row * cols + col_idx];
         }
     }
 }
@@ -1081,6 +1093,34 @@ void Tensor<T>::scatter_subtract_axis1(const Tensor<int>& indices, T value) {
         data_ptr, indices.get_data_ptr(), value, rows, cols
     );
     CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+template <typename T>
+Tensor<T> gather_axis1(const Tensor<int> &indices) const {
+    if (shape.size() != 2) {
+        throw std::invalid_argument("gather_axis1: tensor must be 2D");
+    }
+    if (indices.shape.size() != 1) {
+        throw std::invalid_argument("gather_axis1: indices must be 1D");
+    }
+    if (indices.shape[0] != shape[0]) {
+        throw std::invalid_argument("gather_axis1: indices length must match number of rows");
+    }
+
+    size_t rows = shape[0];
+    size_t cols = shape[1];
+
+    Tensor<T> result({rows});
+
+    dim3 block_size(256);
+    dim3 grid_size = get_grid_size(rows, block_size);
+
+    gather_axis1_kernel<<<grid_size, block_size>>>(
+        data_ptr, indices.get_data_ptr(), result.get_data_ptr(), rows, cols
+    );
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    return result;
 }
 
 template <typename T>

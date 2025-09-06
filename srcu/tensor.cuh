@@ -91,6 +91,12 @@ __global__ void softmax_axis1_kernel(const T* input, T* output, size_t rows, siz
 template<typename T>
 __global__ void log_softmax_axis1_kernel(const T* input, T* output, size_t rows, size_t cols);
 
+template <typename T>
+__global__ void scatter_subtract_axis1_kernel(T* data, const int* indices, T value, size_t rows, size_t cols);
+
+template<typename T>
+__global__ void gather_axis1_kernel(const T* data, const int* indices, T* output, size_t rows, size_t cols);
+
 template<typename T>
 __global__ void update_value_kernel(T val, T* d_ptr);
 
@@ -174,6 +180,7 @@ public:
     Tensor<T> softmax_axis1() const;
     Tensor<T> log_softmax_axis1() const;
     void scatter_subtract_axis1(const Tensor<int>& indices, T value = T(1));
+    Tensor<T> gather_axis1(const Tensor<int>& indices) const;
 
     // Device management and utilities
     void to_device(Device target_device);
