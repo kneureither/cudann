@@ -1,11 +1,11 @@
 /*Training Script for the model*/
 
-#define BATCH_SIZE 512
+#define BATCH_SIZE 32
 #define MAX_EPOCHS 5
 #define LOG_LEVEL "INFO"
 #define WRITE_CSV 1
 #if CUDA_AVAILABLE
-/*#define CUDA_TIMER*/
+//#define CUDA_TIMER
 #endif
 
 #include <chrono>
@@ -130,8 +130,8 @@ int main() {
     int max_epochs = MAX_EPOCHS;
     float learning_rate = 0.001f * BATCH_SIZE;
     int eval_every_steps = 1000000;
-    int log_every_steps = 100;
-    size_t eval_samples = 1000;
+    int log_every_steps = 100000;
+    size_t eval_samples = 10000;
 
     // setup timing
     Timer overall_timer;
@@ -176,6 +176,7 @@ int main() {
     Tensor<int> label_batch({BATCH_SIZE});
     Tensor<precision> logits({BATCH_SIZE, MNIST_LABELS});
     Tensor<precision> d_logits({BATCH_SIZE, MNIST_LABELS});
+    Tensor<precision> loss({1});
 
     // setup model
     Model<precision> model;
@@ -234,8 +235,9 @@ int main() {
             timer.start();
 #endif
 
-            Tensor<precision> loss = loss_fn.forward(logits, label_batch);
+            loss = loss_fn.forward(logits, label_batch);
             //logger(" -- Batch idx: " + std::to_string(batch_idx) + " Loss: " + std::to_string(loss), "DEBUG", __FILE__, __LINE__);
+            d_logits = loss_fn.backward(); // ∂ℓ/∂logits
 
 #ifdef CUDA_TIMER
             loss_time += cuda_timer.stop();
@@ -249,7 +251,6 @@ int main() {
 #else
             timer.start();
 #endif
-            d_logits = loss_fn.backward(); // ∂ℓ/∂logits
             logger("d_logits shape: " + d_logits.shape_to_string(), "DEBUG", __FILE__, __LINE__);
            //logger("d_logits values: " + d_logits.to_string(), "DEBUG", __FILE__, __LINE__);
             model.backward(d_logits); // backprop through all layers
