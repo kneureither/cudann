@@ -104,7 +104,6 @@ __global__ void matmul_kernel(const T* a, const T* b, T* c, size_t m, size_t n, 
             sum += a[row * k + i] * b[i * n + col];
         }
         c[row * n + col] = sum;
-        }
     }
 }
 
@@ -1091,7 +1090,7 @@ void Tensor<T>::scatter_subtract_axis1(const Tensor<int>& indices, T value) {
     dim3 grid_size = get_grid_size(rows, block_size);
     
     scatter_subtract_axis1_kernel<<<grid_size, block_size>>>(
-        data_ptr, indices.get_data_ptr(), value, rows, cols
+        data_ptr, indices.data_ptr, value, rows, cols
     );
     CUDA_CHECK(cudaDeviceSynchronize());
 }
@@ -1117,10 +1116,10 @@ Tensor<T> Tensor<T>::gather_axis1(const Tensor<int> &indices) const {
     dim3 grid_size = get_grid_size(rows, block_size);
 
     gather_axis1_kernel<<<grid_size, block_size>>>(
-        data_ptr, indices.get_data_ptr(), result.get_data_ptr(), rows, cols
+        data_ptr, indices.data_ptr, result.data_ptr, rows, cols
     );
-    CUDA_CHECK(cudaDeviceSynchronize());
 
+    CUDA_CHECK(cudaDeviceSynchronize());
     return result;
 }
 
