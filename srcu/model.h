@@ -53,17 +53,17 @@ public:
 
         // Compute NLL: loss_i = -log_probs[i, targets[i]]
         Tensor<T> total = log_probs.gather_axis1(/*indices=*/ cached_targets_); // [B]
-        total *= T(-1); // -log_probs
+        //total *= T(-1); // -log_probs
         // sum or mean reduction
         Tensor<T> sum = total.sum(/*axis=*/0);
 
         if (reduction_ == Reduction::Mean)
         {
-            last_loss_ = sum *= 1./static_cast<T>(B_);
+            last_loss_ = sum *= -1./static_cast<T>(B_);
         }
         else
         { // Reduction::Sum
-            last_loss_ = sum;
+            last_loss_ = sum *= -1;
         }
         return last_loss_;
     };
