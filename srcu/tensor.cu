@@ -104,6 +104,7 @@ __global__ void matmul_kernel(const T* a, const T* b, T* c, size_t m, size_t n, 
             sum += a[row * k + i] * b[i * n + col];
         }
         c[row * n + col] = sum;
+        }
     }
 }
 

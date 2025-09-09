@@ -13,13 +13,13 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 find_package(CUDA REQUIRED)
 
 # Set CUDA architectures (adjust based on your GPU)
-set(CMAKE_CUDA_ARCHITECTURES "60 61 89")
+set(CMAKE_CUDA_ARCHITECTURES "70") #2080Ti: 75 #A100 70 | 60 61 70 75 89
 
 # Add debug symbols
 set(CMAKE_BUILD_TYPE Debug)
-add_compile_options(-g -O0 -fno-omit-frame-pointer)  # good stack traces
+add_compile_options(-g -O0 ) # s -fno-omit-frame-pointer
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # Debug flags for CUDA
+#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")  # Debug flags for CUDA
 
 # Include directories for headers
 include_directories(srcu)
@@ -31,7 +31,7 @@ add_executable(tentest
 set_target_properties(tentest PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RUNTIME_LIBRARY Shared
-    CUDA_ARCHITECTURES "60"
+    #CUDA_ARCHITECTURES "60"
     COMPILE_FLAGS "-g -DTENSOR_TEST_MAIN"
     LINK_FLAGS "-g"
 )
@@ -45,7 +45,7 @@ add_executable(cumain
 set_target_properties(cumain PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RUNTIME_LIBRARY Shared
-    CUDA_ARCHITECTURES "60"
+    #CUDA_ARCHITECTURES "75"
     COMPILE_FLAGS "-g -DCUDA_AVAILABLE"
     LINK_FLAGS "-g"
 )
