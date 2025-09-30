@@ -29,7 +29,3 @@ cmake --build build
 ```
 
 ## To Do
-
-There are two main tasks open
-- There is a problem in the loss implementation with cuda (it still needs to be ported to a kernel)
-- the `src4/dataloader.cpp` class, which handles the CPU mode, needs to be merged with the CUDA version `srcu/dataloader.cpp`
